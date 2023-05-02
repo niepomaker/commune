@@ -404,11 +404,11 @@ class Module:
         cls.print(data)
         if data == None: 
             data = {}
-        
-        encrypted = data.get('encrypted', False)
-        data = data.get('value', default)
-        if encrypted:
-            data = cls.decrypt(data, password=password)
+        if isinstance(data, dict):
+            encrypted = data.get('encrypted', False)
+            data = data.get('value', default)
+            if encrypted:
+                data = cls.decrypt(data, password=password)
         return data
     @classmethod
     def put_config(cls, key, value) -> Munch:
@@ -3947,8 +3947,8 @@ class Module:
                     return x
 
     @classmethod
-    def set_port_range(cls, port_range):
-
+    def set_port_range(cls, *port_range):
+        port_range = list(port_range)
         assert isinstance(port_range, list), f'Port range must be a list but got {port_range}'
         # check that port range is valid
         for port in port_range:
@@ -3965,9 +3965,10 @@ class Module:
     
     
     @classmethod
-    def get_port_range(cls) -> list:
-
-        port_range = cls.get('port_range', cls.default_port_range, root=True)
+    def get_port_range(cls, port_range = None) -> list:
+        if port_range == None:
+        
+            port_range = cls.get('port_range', cls.default_port_range, root=True)
         
         assert isinstance(port_range, list), f'Port range must be a list but go {port_range}'
         assert isinstance(port_range[0], int), 'Port range must be a list of integers'

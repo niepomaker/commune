@@ -1144,11 +1144,14 @@ class Module:
         path = cls.resolve_path(path=path, extension='json', root=root)
         
         try:
-            data = await async_get_json(path, **kwargs)
+            data = await async_get_json(path, default_return=default, **kwargs)
         except FileNotFoundError:
             return default
+        
         if data == None:
-            data = {}
+            data = default
+           
+        # resolve special packaging (commune soon) 
         if 'data' in data and 'meta' in data:
             data = data['data']
         
@@ -1496,10 +1499,10 @@ class Module:
             peer_addresses = cls.get_peer_addresses()     
             async def async_get_peer_name(peer_name):
                 
-                peer = await cls.async_connect(peer_name, timeout=1)
+                peer = await cls.async_connect(peer_name, timeout=2)
 
                 result =  peer.module_name
- 
+                print(result, peer_name)
                 if cls.check_response(result):
                     return result
                 else:
@@ -1508,6 +1511,7 @@ class Module:
             peer_names = [async_get_peer_name(p) for p in peer_addresses]
             peer_names = cls.gather(peer_names)
             local_namespace = dict(zip(peer_names, peer_addresses))
+            cls.print(local_namespace, peer_names)
             local_namespace = {p_n:p_a for p_n, p_a in local_namespace.items() if p_n != None}
                 
             Module.save_json('local_namespace', local_namespace)
@@ -3943,39 +3947,29 @@ class Module:
                     return x
 
     @classmethod
-    def set_port_range(cls, *port_range: list):
-        if len(port_range) ==0 :
-            port_range = cls.default_port_range
-        elif len(port_range) == 1:
-            if port_range[0] == None:
-                port_range = cls.default_port_range
+    def set_port_range(cls, port_range):
 
-        assert len(port_range) == 2, 'Port range must be a list of two integers'        
+        assert isinstance(port_range, list), f'Port range must be a list but got {port_range}'
+        # check that port range is valid
         for port in port_range:
             assert isinstance(port, int), f'Port {port} range must be a list of integers'
+            
+        assert len(port_range) == 2, 'Port range must be a list of two integers'  
+
         assert port_range[0] < port_range[1], 'Port range must be a list of integers'
                 
-        data = dict(port_range =port_range)
-        cls.put_json('port_range', data, root=True)
-        cls.port_range = data['port_range']
-        return data['port_range']
+        cls.put('port_range', port_range, root=True)
+        return port_range
     
     
     
     
     @classmethod
-    def get_port_range(cls, port_range: list = None) -> list:
+    def get_port_range(cls) -> list:
 
-        if not cls.exists('port_range', root=True):
-            cls.set_port_range(port_range)
-            
-        if port_range == None:
-            port_range = cls.get_json('port_range', root=True)['port_range']
-            
-        if len(port_range) == 0:
-            port_range = cls.default_port_range
-            
-        assert isinstance(port_range, list), 'Port range must be a list'
+        port_range = cls.get('port_range', cls.default_port_range, root=True)
+        
+        assert isinstance(port_range, list), f'Port range must be a list but go {port_range}'
         assert isinstance(port_range[0], int), 'Port range must be a list of integers'
         assert isinstance(port_range[1], int), 'Port range must be a list of integers'
         return port_range

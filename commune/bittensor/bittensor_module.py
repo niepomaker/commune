@@ -145,7 +145,6 @@ class BittensorModule(c.Module):
         wallet2neuron = {}
         
         async def async_get_neuron(w):
-            cls.print(w)
             neuron_info = cls.get_neuron(wallet=w)
             return neuron_info
         
@@ -909,7 +908,7 @@ class BittensorModule(c.Module):
             wait_for_finalization: bool = True,
             prompt: bool = False,
             subtensor = None,
-            max_fee = 1.5,
+            max_fee = 2.0,
             wait_for_fee = True
         ):
         wallet = cls.get_wallet(wallet)
@@ -982,7 +981,7 @@ class BittensorModule(c.Module):
         return wallet.balance
     
     @classmethod
-    def get_address(cls, wallet):
+    def address(cls, wallet):
         wallet = cls.get_wallet(wallet)
         return wallet.coldkey.ss58_address
         
@@ -992,7 +991,7 @@ class BittensorModule(c.Module):
         print(cmd)
         return cls.cmd(cmd)
     
-    default_model_name = os.path.expanduser('~/models/models/gpt-j-6B-vR')
+    default_model_name = os.path.expanduser('~/models/gpt-j-6B-vR')
 
     @classmethod
     def mine(cls, 
@@ -1009,8 +1008,8 @@ class BittensorModule(c.Module):
                tag=None,
                sleep_interval = 2,
                autocast = True,
-               burned_register = True,
-               max_fee = 1.5,
+               burn_reg = False,
+               max_fee = 2.0,
                ):
         
         
@@ -1026,6 +1025,9 @@ class BittensorModule(c.Module):
         while cls.port_used(port):
             port = port + 1
             
+            
+        if model_name == None:
+            model_name = cls.default_model_name
         assert not cls.port_used(port), f'Port {port} is already in use.'
   
         config = bittensor.neurons.core_server.neuron.config()
@@ -1067,7 +1069,7 @@ class BittensorModule(c.Module):
             
         while not wallet.is_registered(subtensor= subtensor, netuid=  netuid):
             
-            if burned_register:
+            if burn_reg:
                 cls.burned_register(
                     wallet = wallet,
                     netuid = netuid,
@@ -1096,23 +1098,75 @@ class BittensorModule(c.Module):
                config=config,
                netuid=netuid).run()
 
+
     @classmethod
-    def deploy_miners(cls, name='ensemble', 
+    def ensure_registration(cls, 
+                            
+                            wallet, 
+                            burn_reg = False,
+                            subtensor = None, 
+                            netuid = None, 
+                            sleep_interval=2):
+            # wait for registration
+            while not cls.is_registered(wallet, subtensor=subtensor, netuid=netuid):
+                # burn registration
+                
+                if burn_reg:
+                    cls.burned_register(
+                        wallet = wallet,
+                        netuid = netuid,
+                        wait_for_inclusion = False,
+                        wait_for_finalization = True,
+                        prompt = False,
+                        subtensor = subtensor,
+                        max_fee = max_fee,
+                    )
+                    
+                c.sleep(sleep_interval)
+                
+                cls.print(f'Pending Registration {wallet} Waiting 2s ...')
+                
+        
+
+    @classmethod
+    def miner_fleet(cls, name='ensemble', 
                     hotkeys=[i+1 for i in range(8)],
                     remote=True,
                     netuid=3,
                     network='finney',
                     refresh: bool = False,
-                    burned_register=False): 
+                    burned_register=False, 
+                    wait_for_register=True,
+                    max_fee=2.0): 
         
         
         wallets = [f'{name}.{hotkey}' for hotkey in hotkeys]
         
         gpus = cls.gpus()
+        subtensor = cls.get_subtensor(network)
         
         axon_ports = []
         for i, wallet in enumerate(wallets):
+            
             assert cls.wallet_exists(wallet), f'Wallet {wallet} does not exist.'
+            if wait_for_register:
+                # wait for registration
+                while not cls.is_registered(wallet, subtensor=subtensor, netuid=netuid):
+                    # burn registration
+                    
+                    if burned_register:
+                        cls.burned_register(
+                            wallet = wallet,
+                            netuid = netuid,
+                            wait_for_inclusion = False,
+                            wait_for_finalization = True,
+                            prompt = False,
+                            subtensor = subtensor,
+                            max_fee = max_fee,
+                        )
+                    time.sleep(2)
+                    cls.print(f'Pending Registration {wallet} Waiting 2s ...')
+                    
             device = i
             assert device < len(gpus), f'Not enough GPUs. Only {len(gpus)} available.'
             tag = f'{wallet}::{network}::{netuid}'
@@ -1127,6 +1181,7 @@ class BittensorModule(c.Module):
                 continue
             else:
                 cls.print(f'Deploying -> Miner: {miner_name} Device: {device} Axon_port: {axon_port}, Prom_port: {prometheus_port}')
+                continue
                 cls.mine(wallet=wallet,
                          remote=remote, 
                          tag=tag, 
@@ -1206,6 +1261,21 @@ class BittensorModule(c.Module):
         cls.pritn(self.reged(subtensor='local'))
         
         
+    @classmethod
+    def coldkey_map(cls, coldkey):
+        
+        hotkeys = cls.hotkeys(coldkey)
+        wallets = [cls.get_wallet(w) for w in cls.wallets(coldkey)]
+        
+        coldkey_map = {
+            'coldkey': wallets[0].coldkey.ss58_address,
+            'hotkeys': {w.hotkey_str: w.hotkey.mnemonic for w in wallets},
+        }
+        
+        return coldkey_map
+    @classmethod
+    def local_node(cls):
+        return cls.cmd('sudo docker-compose up', cwd=f'{cls.repo_path}/subspace')
 if __name__ == "__main__":
     BittensorModule.run()
 

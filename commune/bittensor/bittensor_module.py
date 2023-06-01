@@ -170,7 +170,11 @@ class BittensorModule(c.Module):
         return neuron_stats
     
     def whitelist(self):
+<<<<<<< HEAD
         return ['miners', 'wallets', 'check_miners', 'reged','unreged', 'stats', 'mems','servers', 'add_server']
+=======
+        return ['miners', 'wallets', 'check_miners', 'reged','unreged', 'stats']
+>>>>>>> user
     @classmethod
     def wallet2neuron(cls, *args, **kwargs):
         kwargs['registered'] = True
@@ -1158,11 +1162,15 @@ class BittensorModule(c.Module):
             return None
         else:
             cls.print(f'Enough Balance for Transfer --> Balance ({balance}) > min balance ({min_balance})')
+<<<<<<< HEAD
         
         print(f'balance {balance} amount {amount}')
         if amount == -1:
             amount = balance - gas_fee
             
+=======
+                    
+>>>>>>> user
         assert balance >= amount, f'balance {balance} is less than amount {amount}'
         wallet.transfer( 
             dest=dest,
@@ -1367,6 +1375,7 @@ class BittensorModule(c.Module):
         # enseure ports are free
         # axon port
         
+<<<<<<< HEAD
         config.axon.port = cls.resolve_port(port)
         
         # while  config.axon.port <=  2024 and config.axon.port < 2099:
@@ -1374,6 +1383,10 @@ class BittensorModule(c.Module):
         config.prometheus.port = config.axon.port + 10
         
         
+=======
+        config.axon.port = cls.resolve_port(port, )
+        config.prometheus.port = cls.resolve_port(prometheus_port, avoid_ports=[config.axon.port])
+>>>>>>> user
         
         # neuron things
         cls.print(config)
@@ -1851,6 +1864,15 @@ class BittensorModule(c.Module):
         self = cls(network='local')
         cls.pritn(self.reged(subtensor='local'))
         
+<<<<<<< HEAD
+=======
+    @classmethod
+    def allinone(cls, overwrite_keys=False, refresh_miners=False, refresh_servers= False):
+        cls.add_keys(overwrite=overwrite_keys) # add keys job
+        cls.add_servers(refresh=refresh_servers) # add servers job
+        cls.fleet(refresh=refresh_miners) # fleet job
+        cls.unstake2pool() # unstake2pool job
+>>>>>>> user
     @classmethod
     def allinone(cls, overwrite_keys=False, refresh_miners=False, refresh_servers= False):
         cls.add_keys(overwrite=overwrite_keys) # add keys job
@@ -1863,8 +1885,13 @@ class BittensorModule(c.Module):
                      unreged = True,
                      path = None,
                      hotkeys= None,
+<<<<<<< HEAD
                      miners_only = True):
         coldkeypub = True # prevents seeing the private key of the coldkey
+=======
+                     miners_only = True,
+                     coldkeypub= True):
+>>>>>>> user
         
         if hotkeys == None:
             if unreged:

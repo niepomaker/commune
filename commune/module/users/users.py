@@ -26,7 +26,7 @@ class Users(c.Module):
     
     
     def set_user(self,user, auth):
-        
+        raise NotImplemented
     
     def set_network(self,network) -> Dict:
         assert isinstance(network, str)
@@ -78,15 +78,7 @@ class Users(c.Module):
         else:
             raise NotImplementedError('you did not specify a legit user or address')
     
-    
-    @classmethod
-    def test(cls):
-        self = cls()
-        
-        
-        
-    
-    def user_from_auth(auth):
+    def user_from_auth(self, auth):
         address = self.verify(auth)
         name = auth.pop('name')
         self.users[name] 
@@ -106,12 +98,11 @@ class Users(c.Module):
         name = self.resolve_username(name)
         network = self.resolve_network(network)
         role = self.resolve_role(role)
-        assert 
         self.users[name] = {
             'role':  role,
             'network': network,
             'address': address,
-            **extra_fields
+            **kwargs
         }
         
         return self.users[name]
@@ -119,9 +110,32 @@ class Users(c.Module):
     def rm_user(self, name:str):
         homie =self.users.pop(name, None)
         return {'msg': f'{homie} is no longer your homie'}
-    
-    
+
+    def sidebar(self):
+        with st.form(key='my_form'):
+            st.write("Add a key")
+            key = st.text_input(label='Key')
+            submit_button = st.form_submit_button(label='Submit')
         
+        
+        
+        
+    @classmethod
+    def st(cls):
+        self = Users()
+
+        c.st_sidebar(self.sidebar)()
+        
+        
+        st.write(c.keys())
+        
+        
+        # auth = key.sign('bro')
+        # st.write(key.get_key('bro').__dict__)
+        # verified = key.verify(auth)
+        # address = auth['ss58_address']
+        # st.write(key.get_signer(auth))
+   
         
     def auth_data(self,
             name:str = None,
@@ -149,6 +163,6 @@ class Users(c.Module):
             self.streamlit_signin()
 
 if __name__ == "__main__":
-    Users.run()
+    Users.st()
     
     

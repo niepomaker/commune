@@ -1,5 +1,9 @@
 import commune as c
+import gradio as gr
+import json
 
-dataset = c.connect("dataset::squadv2")
 
-c.print(dir(dataset))
+
+c.gradioify("gradio.example").launch()
+
+gr.close_all()

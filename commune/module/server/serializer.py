@@ -37,10 +37,8 @@ class Serializer(c.Module):
                 
 
         serializer = getattr(self, f'serialize_{data_type}')
-        data_bytes = serializer( data = data )
-        c.print(data_type, type(c.bytes2str(data_bytes))
         output_data = self.dict2bytes({'data_type': data_type, 
-                                        'data': c.bytes2str(data_bytes),
+                                        'data': serializer( data = data ),
                                         'block_ref_paths': block_ref_paths})
         
         if mode == 'proto':
@@ -49,8 +47,6 @@ class Serializer(c.Module):
             return output_data
         else:
             raise NotImplementedError
-
-
 
     def deserialize(self, proto: 'DataBlock') -> object:
         """Serializes a torch object to DataBlock wire format.
@@ -143,7 +139,7 @@ class Serializer(c.Module):
         new_data['dtype'] = str(data.dtype)
         new_data['shape'] = list(data.shape)
         new_data['requires_grad'] = data.requires_grad
-        new_data['data'] = self.torch2bytes(data=data)
+        new_data['data'] = c.bytes2str(self.torch2bytes(data=data))
         return  new_data
 
     def deserialize_torch(self, data: bytes) -> torch.Tensor:

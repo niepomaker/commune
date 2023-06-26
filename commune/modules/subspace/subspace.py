@@ -6,8 +6,6 @@ from typing import List, Dict, Union, Optional, Tuple
 from substrateinterface import SubstrateInterface
 import commune as c
 from typing import List, Dict, Union, Optional, Tuple
-from commune.utils.network import ip_to_int, int_to_ip
-from rich.prompt import Confirm
 from commune.modules.subspace.balance import Balance
 from commune.modules.subspace.utils import (U16_NORMALIZED_FLOAT,
                                     U64_MAX,
@@ -15,20 +13,13 @@ from commune.modules.subspace.utils import (U16_NORMALIZED_FLOAT,
                                     U16_MAX, 
                                     is_valid_address_or_public_key, 
                                     )
-from commune.modules.subspace.chain_data import (ModuleInfo, 
-                                         SubnetInfo, 
-                                         custom_rpc_type_registry)
-from commune.modules.subspace.errors import (ChainConnectionError,
-                                     ChainTransactionError, 
-                                     ChainQueryError, StakeError,
-                                     UnstakeError, 
-                                     TransferError,
-                                     RegistrationError, 
-                                     SubspaceError)
+from commune.modules.subspace.chain_data import (custom_rpc_type_registry)
 import streamlit as st
 import json
 from loguru import logger
 logger = logger.opt(colors=True)
+
+
 
 
 
@@ -37,6 +28,7 @@ class Subspace(c.Module):
     Handles interactions with the subspace chain.
     """
     default_config = c.get_config('subspace', to_munch=False)
+    default_key = default_config['key']
     token_decimals = default_config['token_decimals']
     retry_params = default_config['retry_params']
     network2url = default_config['network2url']
@@ -144,11 +136,12 @@ class Subspace(c.Module):
     def __repr__(self) -> str:
         return self.__str__()
     
-    def auth(self, key, chain='dev', netuid = None):
-        netuid = self.resolve_netuid(netuid)
-        key = self.resolve_key(key)
+    @classmethod
+    def auth(cls, key:str = default_key, chain='dev', netuid = 0):
+        # netuid = self.resolve_netuid(netuid)
+        key = cls.resolve_key(key)
         data = {
-            'network': self.module_path(),
+            'network': cls.module_path(),
             'chain': chain,
             'timestamp': int(c.time()),
             'netuid': netuid,
@@ -160,16 +153,23 @@ class Subspace(c.Module):
             'public_key': key.public_key.hex(),
             'data': data,
         }
+        
         return auth
     
-    def verify(self, auth, max_staleness=60):
+    def verify(self, auth, max_staleness=60, netuid = None ):
         key = c.module('key')(ss58_address=auth['address'])
         verified =  key.verify(auth['data'], bytes.fromhex(auth['signature']), bytes.fromhex(auth['public_key']))
         assert verified, 'Signature verification failed.'
         data = c.jload(auth['data'])
-        assert data['timestamp'] > c.time() - max_staleness, 'Signature is too old.'
-        assert auth['address'] == key.ss58_address, 'Address does not match signature.'
-        assert self.is_registered(key,netuid= data['netuid']), 'Key is not registered.'
+        if  data['timestamp'] > c.time() - max_staleness:
+            return {'success': False, 'msg': 'Signature is too old.'}
+        if auth['address'] == key.ss58_address:
+            return {'success': False, 'msg': 'Address does not match signature.'}
+            
+        
+        if netuid != None:
+            assert data['netuid'] == netuid
+            assert self.is_registered(key,netuid= data['netuid']), 'Key is not registered.'
         return True
     
     #####################
@@ -564,49 +564,42 @@ class Subspace(c.Module):
             
         c.print("Unstaking [bold white]{}[/bold white] from [bold white]{}[/bold white]".format(amount, self.network))
         
-        try:
-            with c.status(":satellite: Unstaking from chain: [white]{}[/white] ...".format(self.network)):
+
+        with c.status(":satellite: Unstaking from chain: [white]{}[/white] ...".format(self.network)):
 
 
-                with self.substrate as substrate:
-                    call = substrate.compose_call(
-                    call_module='SubspaceModule', 
-                    call_function='remove_stake',
-                    call_params={
-                        'amount_unstaked': amount,
-                        'netuid': netuid
-                        }
-                    )
-                    extrinsic = substrate.create_signed_extrinsic( call = call, keypair = key )
-                    response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
-                    # We only wait here if we expect finalization.
-                    if not wait_for_finalization and not wait_for_inclusion:
-                        return True
-
-                    response.process_events()
-
-
-            if response.is_success: # If we successfully unstaked.
-                c.print(":white_heavy_check_mark: [green]Finalized[/green]")
-                with c.status(":satellite: Checking Balance on: [white]{}[/white] ...".format(self.network)):
-                    old_balance = self.to_token(old_balance)
-                    old_stake = self.to_token(old_stake)
-                    
-                    new_balance = self.get_balance( key.ss58_address , fmt='token')
-                    new_stake = self.get_stake( key.ss58_address , fmt='token') # Get stake on hotkey.
-                    
-                    c.print("Balance:\n  [blue]{}[/blue] :arrow_right: [green]{}[/green]".format( old_balance, new_balance ))
-                    c.print("Stake:\n  [blue]{}[/blue] :arrow_right: [green]{}[/green]".format( old_stake, new_stake ))
+            with self.substrate as substrate:
+                call = substrate.compose_call(
+                call_module='SubspaceModule', 
+                call_function='remove_stake',
+                call_params={
+                    'amount_unstaked': amount,
+                    'netuid': netuid
+                    }
+                )
+                extrinsic = substrate.create_signed_extrinsic( call = call, keypair = key )
+                response = substrate.submit_extrinsic( extrinsic, wait_for_inclusion = wait_for_inclusion, wait_for_finalization = wait_for_finalization )
+                # We only wait here if we expect finalization.
+                if not wait_for_finalization and not wait_for_inclusion:
                     return True
-            else:
-                c.print(":cross_mark: [red]Failed[/red]: Error unknown.")
-                return False
 
-        # except Exception as e:
-        #     c.print(f":cross_mark: [red]key: {key} is not registered.[/red]")
-        #     return False
-        except StakeError as e:
-            c.print(":cross_mark: [red]Stake Error: {}[/red]".format(e))
+                response.process_events()
+
+
+        if response.is_success: # If we successfully unstaked.
+            c.print(":white_heavy_check_mark: [green]Finalized[/green]")
+            with c.status(":satellite: Checking Balance on: [white]{}[/white] ...".format(self.network)):
+                old_balance = self.to_token(old_balance)
+                old_stake = self.to_token(old_stake)
+                
+                new_balance = self.get_balance( key.ss58_address , fmt='token')
+                new_stake = self.get_stake( key.ss58_address , fmt='token') # Get stake on hotkey.
+                
+                c.print("Balance:\n  [blue]{}[/blue] :arrow_right: [green]{}[/green]".format( old_balance, new_balance ))
+                c.print("Stake:\n  [blue]{}[/blue] :arrow_right: [green]{}[/green]".format( old_stake, new_stake ))
+                return True
+        else:
+            c.print(":cross_mark: [red]{}[/red]: Error unknown.".format(response.error_message))
             return False
 
     ########################
@@ -710,8 +703,7 @@ class Subspace(c.Module):
         return key_ss58
 
     @classmethod
-    def resolve_key(cls, key):
-        
+    def resolve_key(cls, key:str = default_key):
         if isinstance(key, str):
             if not c.key_exists( key ):
                 c.add_key( key)
@@ -908,25 +900,6 @@ class Subspace(c.Module):
         return subnet
     
 
-    @staticmethod
-    def _null_module() -> ModuleInfo:
-        module = ModuleInfo(
-            uid = 0,
-            netuid = 0,
-            active =  0,
-            stake = '0',
-            rank = 0,
-            emission = 0,
-            incentive = 0,
-            dividends = 0,
-            last_update = 0,
-            weights = [],
-            bonds = [],
-            is_null = True,
-            key = "000000000000000000000000000000000000000000000000",
-        )
-        return module
-
     def subnet_names(self, netuid: int = None) -> Dict[int, str]:
         return list(self.subnet_namespace.keys())
 
@@ -1031,7 +1004,7 @@ class Subspace(c.Module):
                 load = False,
                 save = True,
                 max_age: int = 60,
-                ) -> Dict[str, ModuleInfo]:
+                ) -> Dict[str, dict]:
         
         modules = []
         if load:

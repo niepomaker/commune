@@ -1,4 +1,5 @@
 chain: subspace
+key: alice
 chain_info:
   dev:
     alice:

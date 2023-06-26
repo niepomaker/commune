@@ -2566,10 +2566,10 @@ class c:
              **kwargs):
 
         kill_fn = getattr(cls, f'{mode}_kill')
-        delete_modules = []
+        delete_modules = {}
         for module in modules:
-            killed_module =kill_fn(module, verbose=verbose, **kwargs)
-            delete_modules.extend(killed_module)
+            killed_module = kill_fn(module, verbose=verbose, **kwargs)
+            delete_modules[module] = killed_module
         # update modules
         cls.update(network='local')
         return {'killed': delete_modules}
@@ -3987,7 +3987,7 @@ class c:
                 'module_name', 'modules', 'help']
     @property
     def whitelist(self) -> List[str]:
-        if hasattr(self, 'config'):
+        if hasattr(self, 'config') and isinstance(self.config, dict):
             if 'whitelist' in self.config:
                 return self.config['whitelist']
             
@@ -3997,7 +3997,7 @@ class c:
             return self.fns(include_module=False) + self.attributes() + self.helper_functions
     @property
     def blacklist(self) -> List[str]:
-        if hasattr(self, 'config'):
+        if hasattr(self, 'config') and isinstance(self.config, dict):
             if 'blacklist' in self.config:
                 return self.config['blacklist']
         return []

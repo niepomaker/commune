@@ -26,7 +26,7 @@ from scalecodec.utils.ss58 import ss58_encode
 from enum import Enum
 
 
-custom_rpc_type_registry = {
+ = {
     "types": {
         "SubnetInfo": {
             "type": "struct",

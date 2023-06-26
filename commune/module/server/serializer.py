@@ -15,84 +15,88 @@ from copy import deepcopy
 from munch import Munch
 
 from commune.module.server.proto import DataBlock
-from commune.utils.dict import dict_put, dict_get
-import commune
+import commune as c
 import json
 
-if os.getenv('USE_STREAMLIT'):
-    import streamlit as st
 
-class Serializer(commune.Module):
+class Serializer(c.Module):
     r""" Bittensor base serialization object for converting between DataBlock and their
     various python tensor equivalents. i.e. torch.Tensor or tensorflow.Tensor
     """
 
-    def serialize (self, data: object, metadata:dict) -> DataBlock:
+    def serialize (self, data: object, mode='proto') -> 'DataBlock':
         data_type = self.get_str_type(data)
-        sub_blocks = []
-        
-                
+        block_ref_paths = []
         if data_type in ['dict']:
             object_map = self.get_non_json_objects(x=data, object_map={})
-            
             for k_index ,k in enumerate(object_map.keys()):
                 v = object_map[k]
                 block_ref_path = list(map(lambda x: int(x) if x.isdigit() else str(x), k.split('.')))
-                k_metadata = {'block_ref_path': block_ref_path, 'block_ref_idx': k_index}
-                sub_blocks.append(self.serialize(data=v, metadata=deepcopy(k_metadata)))
-                dict_put(data, block_ref_path , k_metadata)
+                c.dict_put(data, block_ref_path , self.serialize(data=v, mode='bytes'))
+                block_ref_paths.append(block_ref_path)
+                
 
         serializer = getattr(self, f'serialize_{data_type}')
-        data_bytes, metadata = serializer( data = data, metadata=metadata )
+        data_bytes = serializer( data = data )
+        c.print(data_type, type(c.bytes2str(data_bytes))
+        output_data = self.dict2bytes({'data_type': data_type, 
+                                        'data': c.bytes2str(data_bytes),
+                                        'block_ref_paths': block_ref_paths})
+        
+        if mode == 'proto':
+            return DataBlock(data=output_data)
+        elif mode == 'bytes':
+            return output_data
+        else:
+            raise NotImplementedError
 
-        metadata['data_type'] =  data_type
-        metadata_bytes = self.dict2bytes(metadata)
-        return DataBlock(data=data_bytes, metadata = metadata_bytes, blocks=sub_blocks)
 
 
-
-    def deserialize(self, proto: DataBlock) -> object:
+    def deserialize(self, proto: 'DataBlock') -> object:
         """Serializes a torch object to DataBlock wire format.
         """
-        metadata = self.bytes2dict(proto.metadata)
-        data_type = metadata['data_type']
+        if hasattr(proto, data):
+            data = proto.data
+            
+        data = self.bytes2dict(data)
+        data_type = data['data_type']
         deserializer = getattr(self, f'deserialize_{data_type}')
+        data = deserializer( data = data['data'])
+        block_ref_paths = data['block_ref_paths'] 
+        if len(block_ref_paths) > 0:
+            for block_ref_path in block_ref_paths:
+                block = c.dict_get(data, block_ref_path)
+                block = self.deserialize(proto=block)
+                c.dict_put(data, block_ref_path, block['data'])
 
-
-        data = deserializer( data = proto.data , metadata= metadata)
-        if len(proto.blocks) > 0:
-            for proto_block in proto.blocks:
-                block = self.deserialize(proto=proto_block)
-                dict_put(data, block['metadata']['block_ref_path'], block['data'])
-
-        output_dict = dict(data= data, metadata = metadata)
+        output_dict = dict(data= data)
         return output_dict
 
     """
     ################ BIG DICT LAND ############################
     """
 
-    def serialize_dict(self, data: dict, metadata:dict) -> DataBlock:
+    def serialize_dict(self, data: dict) -> 'DataBlock':
         data = self.dict2bytes(data=data)
-        return  data,  metadata
+        return  data
 
 
-    def deserialize_dict(self, data: bytes, metadata:dict) -> DataBlock:
+    def deserialize_dict(self, data: bytes) -> 'DataBlock':
         data = self.bytes2dict(data=data)
         return data
 
-    def serialize_bytes(self, data: dict, metadata:dict) -> DataBlock:
-        return  data,  metadata
+    def serialize_bytes(self, data: dict) -> 'DataBlock':
+        return  data
     
-    def deserialize_bytes(self, data: bytes, metadata:dict) -> DataBlock:
+    def deserialize_bytes(self, data: bytes) -> 'DataBlock':
         return data
 
-    def serialize_munch(self, data: dict, metadata:dict) -> DataBlock:
+    def serialize_munch(self, data: dict) -> 'DataBlock':
         data=self.munch2dict(data)
         data = self.dict2bytes(data=data)
-        return  data,  metadata
+        return  data
 
-    def deserialize_munch(self, data: bytes, metadata:dict) -> DataBlock:
+    def deserialize_munch(self, data: bytes) -> 'DataBlock':
         data = self.bytes2dict(data=data)
         data = self.dict2munch(data)
         return data
@@ -134,24 +138,21 @@ class Serializer(commune.Module):
         return torch_object
 
 
-    def serialize_torch(self, data: torch.Tensor, metadata:dict) -> DataBlock:
+    def serialize_torch(self, data: torch.Tensor) -> DataBlock:
+        new_data = {}
+        new_data['dtype'] = str(data.dtype)
+        new_data['shape'] = list(data.shape)
+        new_data['requires_grad'] = data.requires_grad
+        new_data['data'] = self.torch2bytes(data=data)
+        return  new_data
 
-        metadata['dtype'] = str(data.dtype)
-        metadata['shape'] = list(data.shape)
-        metadata['requires_grad'] = data.requires_grad
-        data = self.torch2bytes(data=data)
-        return  data,  metadata
+    def deserialize_torch(self, data: bytes) -> torch.Tensor:
 
-    def deserialize_torch(self, data: bytes, metadata: dict) -> torch.Tensor:
-
-        dtype = metadata['dtype']
+        dtype = data['dtype']
         assert 'torch.' in dtype
-
-        # if dtype == 'torch.int64':
-        #     dtype = 'torch.float64'
         dtype = eval(dtype)
-        shape = metadata['shape']
-        requires_grad = metadata['requires_grad']
+        shape = data['shape']
+        requires_grad = data['requires_grad']
         data =  self.bytes2torch(data=data, shape=shape, dtype=dtype, requires_grad=requires_grad )
 
 
@@ -190,10 +191,6 @@ class Serializer(commune.Module):
 
         return object_map
     
-   
-    def empty(self):
-        """Returns an empty DataBlock message with the version"""
-        return DataBlock()
 
     @classmethod
     def test_serialize(cls):
@@ -207,7 +204,6 @@ class Serializer(commune.Module):
         data = {'bro': {'fam':[[torch.ones(100,1000), torch.ones(100,1000)]], 'bro': [torch.ones(1,1)]}}
         proto = module.serialize(data)
         data = module.deserialize(proto)
-        st.write(data)
         return True
     
     @classmethod
@@ -216,7 +212,3 @@ class Serializer(commune.Module):
             if f.startswith('test_'):
                 getattr(cls, f)()
                 
-                
-if __name__ == "__main__":
-    Serializer.run()
-

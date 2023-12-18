@@ -3847,12 +3847,33 @@ class Subspace(c.Module):
             c.mkdir(path)
         return path
 
-
-    def node2keystore(self, chain=chain):
+    @classmethod
+    def node2keystore(cls, chain=chain):
         node2keystore = {}
-        for node in self.nodes():
-            node2keystore[node] = [p.split('/')[-1] for p in c.ls(self.keystore_path(node=node, chain=chain))]
+        for node in cls.nodes():
+            node2keystore[node] = [p.split('/')[-1] for p in c.ls(cls.keystore_path(node=node, chain=chain))]
         return node2keystore
+
+    @classmethod
+    def set_keystore(cls, node='vali_0', keystore = None, chain=chain, ):
+        if keystore == None:
+            keystore = cls.get_keystore(node=node, chain=chain)
+        assert isinstance(keystore, list), 'keys must be a list'
+        assert len(keystore) == 2, 'keys must be a list of length 2'
+
+        key_store_path = cls.keystore_path(node=node, chain=chain)
+        if c.exists(key_store_path):
+            c.rm(key_store_path+'/*')
+        for key in keystore:
+            c.put_text(f'{key_store_path}/{key}', key)
+
+        return {'success':True, 'message':'set keystore', 'chain':chain, 'keys': cls.node2keystore(chain=chain).get(node, [])}
+
+        
+    @classmethod
+    def get_keystore(cls, node='vali_0', chain=chain):
+        key_store_path = cls.keystore_path(node=node, chain=chain)
+        return [p.split('/')[-1] for p in c.ls(key_store_path)]
 
     def node2keystore_path(self, chain=chain):
         node2keystore_path = {}
@@ -4081,14 +4102,41 @@ class Subspace(c.Module):
     def chain_spec_hash(cls, chain='main'):
         return c.hash( cls.chain_spec(chain=chain))
     @classmethod
-    def chain_spec(cls, chain='main'):
+    def get_chain_spec(cls, chain='main'):
         return c.get_json(cls.chain_spec_path(chain=chain))
-    
-    @classmethod
-    def chain_spec_authorities(cls, chain='main'):
-        return cls.chain_spec(chain=chain)['genesis']['runtime']['aura']['authorities']
-    
+    chain_spec = get_chain_spec
 
+    @classmethod
+    def set_chain_spec(cls, chain_spec:dict, chain='main'):
+        return c.put_json(cls.chain_spec_path(chain=chain), chain_spec)
+
+    @classmethod
+    def get_chain_authorities(cls, chain='main'):
+        chain_spec = cls.chain_spec(chain=chain)
+        chain_authorities = {
+            'aura': chain_spec['genesis']['runtime']['aura']['authorities'],
+            'gran': [a[0] for a in chain_spec['genesis']['runtime']['grandpa']['authorities']]
+        }
+        return chain_authorities
+    chain_authorities = get_chain_authorities
+
+    @classmethod
+    def set_chain_authorities(cls,authorities:dict = None,  chain='main'):
+        if authorities == None:
+            authorities = cls.get_chain_authorities(chain=chain)
+
+        chain_spec = cls.chain_spec(chain=chain)
+        assert authorities != None, 'authorities must be specified'
+        assert 'aura' in authorities, 'aura must be specified'
+        assert 'gran' in authorities, 'gran must be specified'
+        assert len(authorities['aura']) == len(authorities['gran']), 'aura and gran must have the same length'
+
+        chain_spec['genesis']['runtime']['aura']['authorities'] = authorities['aura']
+        chain_spec['genesis']['runtime']['grandpa']['authorities'] = [[a,1]for a in authorities['gran']]
+        cls.set_chain_spec(chain_spec, chain=chain)
+        authorities = cls.get_chain_authorities(chain=chain)
+        return {'success':True, 'msg': f'set authorities for {chain}', 'authorities': authorities}
+    
     @classmethod
     def id(self):
         return c.hash(self.hash_map())
@@ -4109,7 +4157,6 @@ class Subspace(c.Module):
         c.cmd(f'docker push {public_image}', verbose=True)
         return {'success':True, 'msg': f'pushed {image} to {public_image}'}
 
-
     @classmethod
     def pull(cls, rpull:bool = False):
 
@@ -4118,8 +4165,6 @@ class Subspace(c.Module):
         c.pull(cwd=cls.libpath)
         if rpull:
             cls.rpull()
-
-
 
 
     @classmethod
@@ -4329,15 +4374,20 @@ class Subspace(c.Module):
                  local:bool = False,
                  max_boot_nodes:int = 24,
                  daemon : bool = True,
-                 key_mems:dict = None, # pass the keys mems {aura: '...', gran: '...'}
+                 keystore:dict = None, # pass the keys mems {aura: '...', gran: '...'}
+                 authorities : dict = None, # pass the authorities {aura: '...', gran: '...'}
                  module : str = None , # remote module to call
                  remote = False,
                  debug:bool = False,
                  sid:str = None,
+    
                  ):
 
         if sid != None:
             assert sid == c.sid(), f'remote_id ({sid}) != self_id ({sid})'
+
+        # if authorities != None:
+        #     cls.set_chain_authorities(authorities=authorities, chain=chain)
 
         if debug :
             daemon = False 
@@ -4373,9 +4423,9 @@ class Subspace(c.Module):
             node_info['ws_port'] = ws_port = free_ports[2]
 
         # add the node key if it does not exist
-        if key_mems != None:
-            c.print(f'adding node key for {key_mems}', color='yellow')
-            cls.add_node_key(node=node,chain=chain, key_mems=key_mems, refresh=False, insert_key=True)
+        if keystore != None:
+            c.print(f'adding node key for {keystore}', color='yellow')
+            cls.set_keystore(node=node,keystore=keystore, chain=chain)
 
         base_path = cls.resolve_base_path(node=node, chain=chain)
         
@@ -4559,6 +4609,8 @@ class Subspace(c.Module):
                 # we need to push this to 
                 cls.push(rpull=remote)
         
+
+        authorities = cls.get_chain_authorities(chain=chain)
     
         remote_address_cnt = 1
         avoid_ports = []
@@ -4610,10 +4662,12 @@ class Subspace(c.Module):
                             node_kwargs[k] = port
                     node_kwargs['sid'] = c.sid()
                     node_kwargs['boot_nodes'] = chain_info['boot_nodes'][:max_boot_nodes]
-                    node_kwargs['key_mems'] = cls.node_key_mems(node, chain=chain)
 
-                    assert len(node_kwargs['key_mems']) == 2, f'no key mems found for node {node} on chain {chain}'
-                    response = cls.start_node(**node_kwargs, refresh=refresh)
+                    keystore = cls.get_keystore(node=node, chain=chain)
+                    assert keystore != None, f'keystore must not be None for node {node} on chain {chain}'
+                    assert len(keystore) == 2, f'no key mems found for node {node} on chain {chain}'
+
+                    response = cls.start_node(**node_kwargs, refresh=refresh, authorities=authorities, keystore=keystore)
                     assert 'boot_node' in response, f'boot_node must be in response, not {response.keys()}'
 
                     node_info = response['node_info']

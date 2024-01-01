@@ -2093,10 +2093,6 @@ class c:
         x = float(x)
         return round(x, decimals)
     
-    
-
- 
-    
     @classmethod
     def connect_pool(cls, modules=None, *args, return_dict:bool=False, **kwargs):
         if modules == None:
@@ -2127,7 +2123,7 @@ class c:
         assert not cls.nest_asyncio_enabled, 'Nest Asyncio already enabled'
         import nest_asyncio
         nest_asyncio.apply()
-        nest_asyncio_enabled = True
+        cls.nest_asyncio_enabled = True
         
 
     
@@ -2252,7 +2248,7 @@ class c:
         return False
     is_root = is_module_root = is_root_module
     @classmethod
-    def new_event_loop(cls, nest_asyncio:bool = True) -> 'asyncio.AbstractEventLoop':
+    def new_event_loop(cls, nest_asyncio:bool = False) -> 'asyncio.AbstractEventLoop':
         import asyncio
         if nest_asyncio:
             cls.nest_asyncio()

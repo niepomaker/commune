@@ -3223,7 +3223,7 @@ class Subspace(c.Module):
        
 
     def my_stake(self, search=None, netuid = None, network = None, fmt=fmt,  decimals=2, block=None, update=False):
-        mystaketo = self.my_staketo(netuid=netuid, network=network, fmt=fmt, decimals=decimals, block=block, update=update)
+        mystaketo = self.my_stake_to(netuid=netuid, network=network, fmt=fmt, decimals=decimals, block=block, update=update)
         key2stake = {}
         for key, staketo_tuples in mystaketo.items():
             stake = sum([s for a, s in staketo_tuples])
@@ -3269,7 +3269,7 @@ class Subspace(c.Module):
         
     key2balance = myb = mybal = my_balance
 
-    def my_staketo(self,search=None, netuid = None, network = None, fmt=fmt,  decimals=2, block=None, update=False):
+    def my_stake_to(self,search=None, netuid = None, network = None, fmt=fmt,  decimals=2, block=None, update=False):
         staketo = self.stake_to(netuid=netuid, network=network, block=block, update=update)
         mystaketo = {}
         key2address = c.key2address()
@@ -3281,7 +3281,6 @@ class Subspace(c.Module):
             mystaketo = {k:v for k,v in mystaketo.items() if search in k}
             
         return mystaketo
-    my_stake_to = my_staketo
 
 
     # def my_stakefrom(self, 

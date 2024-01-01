@@ -4,9 +4,6 @@ import commune as c
 import torch 
 import traceback
 import json
-from sse_starlette.sse import EventSourceResponse
-
-
 
 
 class ServerHTTP(c.Module):
@@ -27,6 +24,8 @@ class ServerHTTP(c.Module):
         public: bool = False,
         serializer: str = 'serializer',
         ) -> 'Server':
+
+        self.loop = c.new_event_loop(nest_asyncio=True)
         
         self.serializer = c.module(serializer)()
         self.ip = c.default_ip # default to '0.0.0.0'
@@ -63,8 +62,6 @@ class ServerHTTP(c.Module):
         module.port = self.port
         module.address  = self.address
         self.access_module = c.module(access_module)(module=self.module)  
-
-
         self.set_api(ip=self.ip, port=self.port)
 
 
@@ -85,7 +82,7 @@ class ServerHTTP(c.Module):
 
 
         @self.app.post("/{fn}")
-        async def forward_api(fn:str, input:dict):
+        def forward_api(fn:str, input:dict):
             """
             fn (str): the function to call
             input (dict): the input to the function

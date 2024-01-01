@@ -93,8 +93,6 @@ class Vali(c.Module):
             module_address = module
             module_name = self.address2name.get(module_address, module_address)
         
-        # emoji = c.emoji('hi')
-        # c.print(f'Evaluating  {module_name}:{module_address} -->', color='cyan')
 
         if module_address == my_info['address']:
             return {'error': f'Cannot evaluate self {module_address}'}

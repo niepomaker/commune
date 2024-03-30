@@ -1,8 +1,9 @@
-
 import commune as c
 from munch import Munch
+from typing import Union, Optional
+from commune import Module
 
-class CLI(c.Module):
+class CLI(Module):
     """
     Create and init the CLI class, which handles the coldkey, hotkey and tao transfer 
     """
@@ -10,9 +11,10 @@ class CLI(c.Module):
 
     def __init__(self, 
                  args = None,
-                module = None,
+                module = None, 
                 new_event_loop: bool = True,
                 save: bool = True):
+
 
         self.get_cli(args=args, 
                      module=module, 
@@ -24,7 +26,7 @@ class CLI(c.Module):
     def get_cli(
             self,
             args = None,
-            module : c.Module = None,
+            module : Optional[Module] = None, # TODO revisit if this should be optional
             new_event_loop: bool = True,
             save: bool = True
         ) :

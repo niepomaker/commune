@@ -30,15 +30,15 @@ class CLI(Module):
             new_event_loop: bool = True,
             save: bool = True
         ) :
-        self.base_module = c.Module()
+        self.base_module = c.Module() # This was declared as the base module yet not used anywhere else. having a non instantiated class as the module causes issues when using c.modulename as a function
         input = args or self.argv()
         args, kwargs = self.parse_args(input)
         
         if new_event_loop:
-            c.new_event_loop(True)
+            self.base_module.new_event_loop(True) #using base module
 
         if len(args) == 0:
-            return c.schema()
+            return self.base_module.schema() #using base module
         
 
         base_module_attributes = list(set(self.base_module.functions()  + self.base_module.get_attributes()))
@@ -50,24 +50,24 @@ class CLI(Module):
             args = args[0].split('/') + args[1:]
             is_fn = False
 
-        if is_fn:
+        if is_fn: #I do not understand what is going on here. You are declaring it the base module which is the module, but you are giving it a default value of the uninstantiated module class. 
             # is a function
-            module = module or c.Module
+            module = self.base_module or Module 
             fn = args.pop(0)
         else:
             module = args.pop(0)
             if isinstance(module, str):
-                module = c.module(module)
+                module = self.base_module or Module # TODO revisit.
             fn = args.pop(0)
             
         fn_obj = getattr(module, fn)
         
         if callable(fn_obj) :
-            if c.classify_fn(fn_obj) == 'self':
-                fn_obj = getattr(module(), fn)
+            if self.base_module.classify_fn(fn_obj) == 'self': #using base module
+                fn_obj = getattr(Module(), fn)
             output = fn_obj(*args, **kwargs)
-        elif c.is_property(fn_obj):
-            output =  getattr(module(), fn)
+        elif self.base_module.is_property(fn_obj):
+            output =  getattr(Module(), fn)
         else: 
             output = fn_obj  
         if callable(fn):
@@ -77,19 +77,19 @@ class CLI(Module):
     def process_output(self, output, save=True, verbose=True):
         if save:
             self.save_history(input, output)
-        if c.is_generator(output):
+        if self.base_module.is_generator(output):
             for output_item in output:
                 if isinstance(c, Munch):
                     output_item = output_item.toDict()
-                c.print(output_item,  verbose=verbose)
+                self.base_module.print(output_item,  verbose=verbose)#using base module
         else:
             if isinstance(output, Munch):
                 output = output.toDict()
-            c.print(output, verbose=verbose)
+            self.base_module.print(output, verbose=verbose) #using base module
 
     def save_history(self, input, output):
         try:
-            self.put(f'cli_history/{int(c.time())}', {'input': input, 'output': output})
+            self.put(f'cli_history/{int(self.base_module.time())}', {'input': input, 'output': output})
         except Exception as e:
             pass
         return {'input': input, 'output': output}
@@ -100,7 +100,7 @@ class CLI(Module):
     @classmethod
     def history(cls, n=10):
         history_paths = cls.history_paths(n=n)
-        historys = [c.get_json(s) for s in history_paths]
+        historys = [Module.get_json(s) for s in history_paths] #need to make this Module if we are adjusting the class method
         return historys
     
     @classmethod

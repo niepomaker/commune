@@ -1,20 +1,22 @@
 from commune import Module 
+import os
+import json
+from pathlib import Path
+from pydantic import BaseModel
+from typing import Optional, Dict, List, Any, Union
+from abc import ABC, abstractmethod 
+from dotenv import load_dotenv
 
+load_dotenv()
 
 c = Module()
 
-
 # Keys dict
-keys = {
-    "vali": "5FcKL8ZKHW9h1cNTw1DyZ9PC9u5WFYLKqCwhHYsDvtmvF4xJ",
-    "vali::agentartificial": "5G4VmeAD23Kj2K9eTcvd5eBHx1Cwssj7rnhoY8KaBBKspjTT",
-    "none1": "5CPoqeTvAdiyoEUYWrs3qBGdCVgnxEnoFtYxMg8KFqnTyVZf",
-    "razor": "5F6fGvNACrwmEkkygAcyCqeou126TeYdd9Z5NNJpKcwRhiqe",
-    "razor-dev-key": "5GFAqW58Tp1anmQZofSiXcjPkaMBcSyYxs3LHcqaPFxCbF2Y",
-    "module::test": "5HizepgsAH5CSkPUHPoiYYkEJBxT5No5WExJtRzpf6Bxm3Ny",
-    "module": "5DFztJFTafuDHRTuBGeKpuAdmjqCFPp4NcviZUAZ452hZEuJ",
-    "demo": "5ELFAqGeUc3RVHH6ZsUSv2apcAwaHtLdcCVXusqSZBvpVrzx",
-}
+keys = {}
+key2ss58address = {}
+key2mnemonic = {}
+
+
 
 
 def status():
@@ -57,12 +59,11 @@ def balances():
     return "\n".join(bals)
 
 
-#Key the balance of keys in the keys dict
-def balance(key):
-    return key, c.balance(keys[key])
+
 
 
 if __name__ == "__main__":
     #status()
-    print(balances())
+    parse_keys()
+    #balances()
     

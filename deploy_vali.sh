@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Prompt User for variables
+Prompt User for variables
 echo "Enter your vali name. Do not include 'vali::' "
 read VALI_NAME
 echo "Enter your host ip. Do not include 'http://'"
@@ -13,20 +13,6 @@ echo "What subnet would you like to deploy it on? Must be a valid integer"
 read SUBNET
 echo "What should the delegation rate be? 1-100"
 read DELEGATION_FEE
-
-# Confirm configuration is correct
-echo "This is your validator configuration: "
-echo $VALI_NAME
-echo $HOST
-echo $PORT
-echo $KEY
-echo $SUBNET
-echo $DELEGATION_FEE
-echo "Is this correct? (y/n)"
-read ANSWER
-if [ "$ANSWER" != "y" ]; then
-    exit 1
-fi
 
 # Serve the validator module
 echo "Serving vali"
@@ -44,13 +30,30 @@ if [ $? -ne 0 ]; then
     fi
 fi
 
+
+Confirm configuration is correct
+echo "This is your validator configuration: "
+echo $VALI_NAME
+echo $HOST
+echo $PORT
+echo $KEY
+echo $SUBNET
+echo $DELEGATION_FEE
+echo "Is this correct? (y/n)"
+read ANSWER
+if [ "$ANSWER" != "y" ]; then
+    exit 1
+fi
+
+comx module register vali\:\:jimson 165.227.37.247 50088 5Gj1eMB7QBvHccxtRZQBQFWmXnM2XpJQgP1hZ9wVsNbWD2UM --netuid=0 
+
 # Register the validator
 echo "Registering vali"
-comx module register vali\:\:$VALI_NAME $HOST_IP $PORT $KEY --netuid=$SUBNET
+comx module register vali\:\:$VALI_NAME $HOST_IP $PORT $KEY $SUBNET
 exit_value $?
 if [ $? -ne 0 ]; then
     echo "Failed to register vali. Exiting"
-    exit 1
+    pause_script
 fi
 
 # Change the delegation fee
@@ -59,7 +62,7 @@ comx module update module vali\:\:$VALI_NAME $HOST_IP $PORT --delegation-fee $DE
 exit_value $?
 if [ $? -ne 0 ]; then
     echo "Failed to change delegation fee. Exiting"
-    exit 1
+    pause_script
 fi
 
 # Start the voting loop
@@ -68,7 +71,7 @@ c voteloop vali\:\:$VALI_NAME
 exit_value $?
 if [ $? -ne 0 ]; then
     echo "Failed to start voteloop. Exiting"
-    exit 1
+    pause_script
 fi
 
 # Deploy the vali

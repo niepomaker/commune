@@ -1,4 +1,4 @@
-import argparse
-import commune as c
+from commune.module.TheRoost.api import run
 
-c.print(c.servers())
+
+print(run())

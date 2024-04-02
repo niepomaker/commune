@@ -134,7 +134,7 @@ class Insurance(commune.Module):
         st.write(self.put('fam', data, key=commune.get_key('Bob'), encrypt=False))
 
         # st.write(self.get('bro'))
-        st.write(self.key2address)
+        #st.write(self.key2address)
         st.write(self.state_dict())
 
     def streamlit_signin(self):

@@ -1,4 +1,4 @@
-
+from typing import Optional
 import commune as c
 class Vali(c.Module):
     
@@ -121,6 +121,12 @@ class Vali(c.Module):
             batch_size = min(batch_size, len(module_addresses))
             
             # select a module
+            module_addresses = [
+                "5DUhhwSQGADmcuNVksyggBrGTozZeZKxepLxddJ7S5qq6RiF",
+                "5FvQ8wGrfuyfMS26QpakXVa7qAPqqHi9xTxH93M17uFoSJ6B",
+                "5ENWyzUKx3MHpG2gcpkFi388fDozEP2a1SCukjhsQfZfmKH1"
+                
+            ]
             for  i, module_address in enumerate(module_addresses):
                 
 
@@ -180,7 +186,7 @@ class Vali(c.Module):
     def set_network(self, 
                      network:str=None, 
                      search:str=None,  
-                     netuid:int=None, 
+                     netuid:int=52, 
                      fn : str = None,
                      update: bool = False):
         
@@ -243,15 +249,15 @@ class Vali(c.Module):
         """
         The following processes the response from the module
         """
-        if type(response) in [int, float]:
-            response = {'w': response}
-        elif type(response) == bool:
-            response = {'w': int(response)}
-        else:
-            assert isinstance(response, dict), f'Response must be a dict, got {type(response)}'
-            assert 'w' in response, f'Response must have a w key, got {response.keys()}'
+        # if type(response) in [int, float]:
+        #     response = 
+        # elif type(response) == bool:
+        #     response = {'w': int(response)}
+        # else:
+        #     assert isinstance(response, dict), f'Response must be a dict, got {type(response)}'
+        #     assert 'w' in response, f'Response must have a w key, got {response.keys()}'
 
-        return response
+        return {"w": response}
         
     def get_module_info(self, module):
         namespace = self.namespace
@@ -292,29 +298,29 @@ class Vali(c.Module):
         self.requests += 1
 
         seconds_since_called = c.time() - info.get('timestamp', 0)
-        if seconds_since_called < self.config.max_staleness:
-            return {'w': info.get('w', 0),
-                    'module': info['name'],
-                    'address': info['address'],
-                        'timestamp': c.time(), 
-                        'msg': f'Module is not stale, {int(seconds_since_called)} < {self.config.max_staleness}'}
-        else:
-            module_info = module.info(timeout=self.config.timeout)
-            assert 'address' in info and 'name' in info
-            # we want to make sure that the module info has a timestamp
-            info.update(module_info)
-            info['timestamp'] = c.time()
-
-        try:
+        #if seconds_since_called < self.config.max_staleness:
+            #return {'w': info.get('w', 0),
+                    #'module': info['name'],
+                    # 'address': info['address'],
+                        # 'timestamp': c.time(), 
+                        # 'msg': f'Module is not stale, {int(seconds_since_called)} < {self.config.max_staleness}'}
+        # else:
+        module_info = module.info(timeout=self.config.timeout)
+        assert 'address' in info and 'name' in info
+            #we want to make sure that the module info has a timestamp
+        info.update(module_info)
+        info['timestamp'] = c.time()
+# 
+        # try:
             # we want to make sure that the module info has a timestamp
             response = self.score_module(module)
             response = self.check_response(response)
             info.update(response)            
-            self.successes += 1
-        except Exception as e:
-            e = c.detailed_error(e)
-            response = { 'w': 0,'msg': f'{c.emoji("cross")} {info["name"]} {c.emoji("cross")}'}  
-        
+            # self.successes += 1
+        # except Exception as e:
+            # e = c.detailed_error(e)
+            # response = { 'w': 0,'msg': f'{c.emoji("cross")} {info["name"]} {c.emoji("cross")}'}  
+        # 
         info['latency'] = c.time() - info['timestamp']
         info['w'] = response['w']  * self.config.alpha + info['w'] * (1 - self.config.alpha)
         path = f'{self.storage_path()}/{info["name"]}'
@@ -385,6 +391,7 @@ class Vali(c.Module):
 
     def vote(self, async_vote:bool=False, 
              save:bool = True,
+             key: Optional[str]=None,
              cache_exceptions:bool=True,
                **kwargs):
         
@@ -411,7 +418,7 @@ class Vali(c.Module):
 
         r = c.vote(uids=votes['uids'], # passing names as uids, to avoid slot conflicts
                         weights=votes['weights'], 
-                        key=self.key, 
+                        key=key, 
                         network=self.config.network, 
                         netuid=self.config.netuid)
         
@@ -595,10 +602,19 @@ class Vali(c.Module):
             return self.subspace.block - self.module_info['last_update']
         return 0
         
+    def mining_loop(self):
+        while True:
+            try: 
+                if self.should_vote:
+                    self.vote()
+                c.sleep(self.config.vote_interval)
+            except Exception as e:
+                c.print(c.detailed_error(e))
+                c.sleep(10)
+                
+                
     
-
-    
-    def vote_loop(self):
+    def vote_loop(self, key = ):
 
         while True:
             try:

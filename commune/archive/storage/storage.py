@@ -102,7 +102,7 @@ class Storage(commune.Module):
             else:
                 key2address[v['ss58_address']] = [k]
 
-        return key2address
+        return 
         
 
     def is_encrypted(self, item: Dict) -> bool:
@@ -132,7 +132,7 @@ class Storage(commune.Module):
         st.write(self.put('fam', data, key=commune.key('Bob'), encrypt=False))
 
         # st.write(self.get('bro'))
-        st.write(self.key2address)
+        #st.write(self.key2address)
         st.write(self.state_dict())
     
 if __name__ == "__main__":

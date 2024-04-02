@@ -332,13 +332,16 @@ class Dashboard(c.Module):
         st.sidebar.markdown(f'**{page}**')
         module = page.lower()
         module = c.module(page)
-        fn_name = 'dashboard'
-        fn = getattr(module, fn_name)
-        schema = module.schema().get(fn_name)
-        if 'key' in schema['input']:
-            fn(key=self.key)
-        else:
-            fn()
+        if module != None:
+
+            fn_name = 'dashboard'
+            fn = getattr(module, fn_name)
+            schema = module.schema().get(fn_name)
+            if 'key' in schema['input']:
+                fn(key=self.key)
+            else:
+                fn()
+        pass
 
         # if tokenomics:
         #     c.module('subspace.tokenomics').dashboard()

@@ -59,6 +59,30 @@ class Subspace(c.Module):
     connection_mode = 'ws'
 
     def resolve_url(self, url:str = None, network:str = network, mode=None , **kwargs):
+        """
+        Resolves the URL for the given network and mode.
+
+        Args:
+            url (str, optional): The URL to resolve. Defaults to None.
+            network (str, optional): The network to resolve the URL for. Defaults to the network specified in the config.
+            mode (str, optional): The mode to use for resolving the URL. Defaults to the mode specified in the config.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            str: The resolved URL.
+
+        Raises:
+            None
+
+        Examples:
+            >>> resolve_url(url='http://example.com', network='mainnet', mode='rpc')
+            'http://0.0.0.0'
+
+        Note:
+            - If the `url` parameter is not provided, the function searches for matching providers in the config and resolves the URL accordingly.
+            - The resolved URL is modified to replace the IP address with '0.0.0.0'.
+
+        """
         mode = mode or self.config.connection_mode
         network = 'network' or self.config.network
         if url == None:
@@ -171,6 +195,19 @@ class Subspace(c.Module):
                 mode = 'http',
                 trials = 10,
                 url : str = None, **kwargs):
+        """
+        Set the network configuration and retrieve the corresponding substrate. 
+
+        Args:
+            network (str): The network to connect to (default is 'main').
+            mode: The mode of connection (default is 'http').
+            trials: The number of connection trials (default is 10).
+            url (str): The URL for the network connection.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict: A dictionary containing the network and URL information.
+        """
                
         self.substrate = self.get_substrate(network=network, url=url, mode=mode, trials=trials , **kwargs)
         response =  {'network': self.network, 'url': self.url}
@@ -186,6 +223,19 @@ class Subspace(c.Module):
 
 
     def rank_modules(self,search=None, k='stake', n=10, modules=None, reverse=True, names=False, **kwargs):
+        """
+        Generate function comment for the given function body.
+        
+        :param search: Optional, a search term.
+        :param k: Optional, the key to rank the modules by.
+        :param n: Optional, number of modules to return.
+        :param modules: Optional, a list of modules to rank.
+        :param reverse: Optional, whether to reverse the ranking.
+        :param names: Optional, if True, return only module names.
+        :param **kwargs: Additional keyword arguments.
+        
+        :return: A list of modules ranked according to the specified key.
+        """
         modules = self.modules(search=search, **kwargs) if modules == None else modules
         modules = sorted(modules, key=lambda x: x[k], reverse=reverse)
         if names:
@@ -221,6 +271,15 @@ class Subspace(c.Module):
         return uids
     
     def get_netuid_for_subnet(self, network: str = None) -> int:
+        """
+        Get the netuid for a given subnet.
+
+        Args:
+            network (str, optional): The name of the network. Defaults to None.
+
+        Returns:
+            int: The netuid for the subnet. If the network is not found, returns 0.
+        """
         return {'commune': 0}.get(network, 0)
 
 
@@ -243,10 +302,30 @@ class Subspace(c.Module):
         
 
     def wasm_file_path(self):
+        """
+        Returns the file path of the WASM file for the current library.
+
+        :return: A string representing the file path of the WASM file.
+        """
         wasm_file_path = self.libpath + '/target/release/wbuild/node-subspace-runtime/node_subspace_runtime.compact.compressed.wasm'
         return wasm_file_path
 
     def my_stake_from(self, netuid = 0, block=None, update=False, network=network, fmt='j', max_age=1000 , **kwargs):
+        """
+        Calculates the total stake from a specific network or subnet.
+
+        Args:
+            netuid (int, optional): The network ID. Defaults to 0.
+            block (int, optional): The block number. Defaults to None.
+            update (bool, optional): Whether to update the stake information. Defaults to False.
+            network (str, optional): The network name. Defaults to network.
+            fmt (str, optional): The format for the stake amount. Defaults to 'j'.
+            max_age (int, optional): The maximum age of the stake information. Defaults to 1000.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict: A dictionary containing the total stake from the specified network or subnet. The keys are the staker addresses and the values are the stake amounts formatted according to the specified format.
+        """
         stake_from_tuples = self.stake_from(netuid=netuid,
                                              block=block,
                                                update=update, 
@@ -277,10 +356,37 @@ class Subspace(c.Module):
 
     
     def delegation_fee(self, netuid = 0, block=None, network=None, update=False, fmt='j'):
+        """
+        Retrieve the delegation fee for a specific network user.
+
+        Args:
+            netuid (int, optional): The network user ID. Defaults to 0.
+            block (str, optional): The block to query. Defaults to None.
+            network (str, optional): The network to query. Defaults to None.
+            update (bool, optional): Whether to update the query. Defaults to False.
+            fmt (str, optional): The format of the query result. Defaults to 'j'.
+
+        Returns:
+            dict: The delegation fee information.
+        """
         delegation_fee = self.query_map('DelegationFee', netuid=netuid, block=block ,update=update, network=network)
         return delegation_fee
 
-    def stake_to(self, netuid = 0, network=network, block=None, update=False, fmt='nano',**kwargs):
+    def stake_to(self, netuid=0, network=network, block=None, update=False, fmt='nano', **kwargs):
+        """
+        Query the 'StakeTo' data and format the results.
+
+        Parameters:
+        - netuid (int): The unique identifier for the network.
+        - network (str): The network to query.
+        - block (str): The block to query.
+        - update (bool): Whether to update the query.
+        - fmt (str): The format for the amount (e.g., 'nano').
+        - **kwargs: Additional keyword arguments for the query.
+
+        Returns:
+        - dict: The structured stake information.
+        """
         stake_to = self.query_map('StakeTo', netuid=netuid, block=block, update=update, network=network, **kwargs)
         format_tuples = lambda x: [[_k, self.format_amount(_v, fmt=fmt)] for _k,_v in x]
         if netuid == 'all':
@@ -291,6 +397,19 @@ class Subspace(c.Module):
         return stake_to
     
     def my_stake_to(self, netuid = 0, block=None, update=False, network='main', fmt='j'):
+        """
+        Calculate the total stake for each staker address and return the aggregated stake totals.
+        
+        Parameters:
+            netuid (int): The netuid to calculate the stake for. Default is 0.
+            block (NoneType): The block to calculate the stake for. Default is None.
+            update (bool): Flag to indicate whether to update the stake information. Default is False.
+            network (str): The network to perform the stake calculation on. Default is 'main'.
+            fmt (str): The format of the stake information. Default is 'j'.
+        
+        Returns:
+            dict: A dictionary containing the staker addresses as keys and their total stakes as values.
+        """
         stake_to = self.stake_to(netuid=netuid, block=block, update=update, network=network, fmt=fmt)
         address2key = c.address2key()
         stake_to_total = {}
@@ -307,6 +426,19 @@ class Subspace(c.Module):
         return stake_to_total
     
     def min_burn(self,  network='main', block=None, update=False, fmt='j'):
+        """
+        Retrieves the minimum burn amount for a given network and block.
+
+        Args:
+            network (str, optional): The name of the network. Defaults to 'main'.
+            block (int, optional): The block number. Defaults to None.
+            update (bool, optional): Whether to update the data. Defaults to False.
+            fmt (str, optional): The format of the amount. Defaults to 'j'.
+
+        Returns:
+            str: The formatted minimum burn amount.
+
+        """
         min_burn = self.query('MinBurn', block=block, update=update, network=network)
         return self.format_amount(min_burn, fmt=fmt)
     
@@ -319,11 +451,23 @@ class Subspace(c.Module):
               save= True,
               mode = 'http',
             update=False):
-        
         """
-        query a subspace storage function with params and block.
-        """
+        A method to query a network with specific parameters and return the response value.
 
+        Parameters:
+            name (str): The name of the query.
+            params (Optional): Additional parameters for the query (default None).
+            module (str): The module to query from (default 'SubspaceModule').
+            block: The block to specify for the query (default None).
+            netuid: The unique identifier for the network (default None).
+            network (str): The network to query from (default the value of 'network' variable).
+            save (bool): Flag to indicate whether to save the query value (default True).
+            mode (str): The mode of querying (default 'http').
+            update (bool): Flag to indicate if the query result should be updated (default False).
+
+        Returns:
+            The response value of the query.
+        """
         network = self.resolve_network(network)
         path = f'query/{network}/{module}.{name}'
     
@@ -361,9 +505,17 @@ class Subspace(c.Module):
                        module_name: str = 'SubspaceModule', 
                        block: Optional[int] = None ,
                        network: str = None) -> Optional[object]:
-        """ 
-        Gets a constant from subspace with
-        module_name, constant_name, and block. 
+        """
+        Query a constant value from the blockchain substrate network.
+
+        Parameters:
+            constant_name (str): The name of the constant value to query.
+            module_name (str): The name of the module where the constant is defined. Default is 'SubspaceModule'.
+            block (Optional[int]): The block number to query the constant value at. Default is None.
+            network (str): The network to query the constant value from.
+
+        Returns:
+            Optional[object]: The value of the queried constant.
         """
 
         network = self.resolve_network(network)
@@ -393,7 +545,27 @@ class Subspace(c.Module):
                   mode = 'ws',
                   **kwargs
                   ) -> Optional[object]:
-        """ Queries subspace map storage with params and block. """
+        """
+        A function that queries a map based on specified parameters and returns the resulting map.
+        
+        Parameters:
+            name (str): The name of the map to query.
+            params (list): The parameters for the query.
+            block (Optional[int]): The block number for the query.
+            network (str): The network to query on.
+            netuid : The unique identifier for the network.
+            page_size (int): The size of the page for the query.
+            max_results (int): The maximum number of results to retrieve.
+            module (str): The module to query.
+            update (bool): Whether to update the query results.
+            max_age : The maximum age in seconds for the query.
+            mode (str): The mode of querying.
+            **kwargs: Additional keyword arguments for the query.
+        
+        Returns:
+            Optional[object]: The queried map object.
+        """
+
 
         # if all lowercase then we want to capitalize the first letter
         if name[0].islower():
@@ -469,6 +641,15 @@ class Subspace(c.Module):
         return new_qmap
     
     def runtime_spec_version(self, network:str = 'main'):
+        """
+        Get the runtime version.
+
+        Parameters:
+            network (str): The network to retrieve the runtime version from. Defaults to 'main'.
+
+        Returns:
+            str: The runtime version.
+        """
         # Get the runtime version
         self.resolve_network(network=network)
         c.print(self.substrate.runtime_config.__dict__)
@@ -482,6 +663,18 @@ class Subspace(c.Module):
 
     """ Returns network SubnetN hyper parameter """
     def n(self,  netuid: int = 0, network = 'main' ,block: Optional[int] = None, update=True, **kwargs ) -> int:
+        """
+        A description of the entire function, its parameters, and its return types.
+        
+            netuid: int = 0
+            network: str = 'main'
+            block: Optional[int] = None
+            update: bool = True
+            **kwargs
+
+        Returns:
+            int
+        """
         if netuid == 'all':
             return sum(self.query_map('N', block=block , update=update, network=network, **kwargs))
         else:
@@ -493,12 +686,40 @@ class Subspace(c.Module):
     
     """ Returns network Tempo hyper parameter """
     def stakes(self, netuid: int = 0, block: Optional[int] = None, fmt:str='nano', max_staleness = 100,network=None, update=False, **kwargs) -> int:
+        """
+        A function that retrieves stakes for a given netuid and formats the amount based on the specified format.
+        
+        Parameters:
+            netuid (int): The unique identifier for the stakes.
+            block (Optional[int]): The block number associated with the stakes. Default is None.
+            fmt (str): The format in which the amount should be displayed. Default is 'nano'.
+            max_staleness (int): The maximum staleness allowed in retrieving the stakes. Default is 100.
+            network: Additional network information.
+            update (bool): A flag indicating whether to update the stakes. Default is False.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            int: A dictionary containing the formatted stakes.
+        """
         stakes =  self.query_map('Stake', update=update, **kwargs)[netuid]
         return {k: self.format_amount(v, fmt=fmt) for k,v in stakes.items()}
 
     """ Returns the stake under a coldkey - hotkey pairing """
     
     def resolve_key_ss58(self, key:str, network='main', netuid:int=0, resolve_name=True, **kwargs):
+        """
+        Resolves a given key to its corresponding ss58 address.
+
+        Args:
+            key (str): The key to be resolved.
+            network (str, optional): The network to use for resolution. Defaults to 'main'.
+            netuid (int, optional): The network UID to use for resolution. Defaults to 0.
+            resolve_name (bool, optional): Whether to resolve the key name. Defaults to True.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            str: The ss58 address of the resolved key.
+        """
         if key == None:
             key = c.get_key(key)
 
@@ -525,6 +746,27 @@ class Subspace(c.Module):
         return key_address
 
     def subnet2modules(self, network:str='main', **kwargs):
+        """
+        Retrieves the modules for each subnet in the specified network.
+
+        Args:
+            network (str, optional): The network for which to retrieve the modules. Defaults to 'main'.
+            **kwargs: Additional keyword arguments to be passed to the `my_modules` method.
+
+        Returns:
+            dict: A dictionary mapping each subnet UID to a list of modules.
+
+        Raises:
+            None
+
+        Examples:
+            >>> subnet2modules()
+            {'subnet1': [module1, module2], 'subnet2': [module3]}
+
+        Note:
+            This method resolves the network before retrieving the modules for each subnet.
+
+        """
         subnet2modules = {}
         self.resolve_network(network)
 
@@ -535,6 +777,15 @@ class Subspace(c.Module):
         return subnet2modules
     
     def module2netuids(self, network:str='main', **kwargs):
+        """
+        Generate a dictionary mapping module names to lists of network UIDs. 
+
+        :param network: the network for which to generate the module to network UID mapping
+        :param kwargs: additional keyword arguments
+        :type network: str
+        :return: a dictionary mapping module names to lists of network UIDs
+        :rtype: dict
+        """
         subnet2modules = self.subnet2modules(network=network, **kwargs)
         module2netuids = {}
         for netuid, modules in subnet2modules.items():
@@ -547,6 +798,15 @@ class Subspace(c.Module):
     
     @classmethod
     def from_nano(cls,x):
+        """
+        Calculates the value of a given number in base units of the token.
+
+        Args:
+            x (float): The number to be converted.
+
+        Returns:
+            float: The value of the number in base units of the token.
+        """
         return x / (10**cls.token_decimals)
     to_token = from_nano
     @classmethod
@@ -571,6 +831,19 @@ class Subspace(c.Module):
         return x
     
     def get_stake( self, key_ss58: str, block: Optional[int] = None, netuid:int = None , fmt='j', update=True ) -> Optional['Balance']:
+        """
+        Retrieves the stake for a given key on a specified network.
+
+        Args:
+            key_ss58 (str): The SS58-encoded key for which to retrieve the stake.
+            block (Optional[int], optional): The block number to query the stake at. Defaults to None, which retrieves the current stake.
+            netuid (int, optional): The network identifier. Defaults to None, which retrieves the stake for the default network.
+            fmt (str, optional): The format in which to return the stake amount. Defaults to 'j'.
+            update (bool, optional): Whether to update the stake before retrieving it. Defaults to True.
+
+        Returns:
+            Optional['Balance']: The stake amount for the given key on the specified network, formatted according to the specified format.
+        """
         
         key_ss58 = self.resolve_key_ss58( key_ss58)
         netuid = self.resolve_netuid( netuid )
@@ -580,10 +853,33 @@ class Subspace(c.Module):
     
 
     def all_key_info(self, netuid='all', timeout=10, update=False, **kwargs):
+        """
+        Retrieves all key information for a given netuid.
+
+        :param netuid: A string representing the netuid for which to retrieve key information. Defaults to 'all'.
+        :param timeout: An integer representing the timeout value in seconds. Defaults to 10.
+        :param update: A boolean indicating whether to update the key information. Defaults to False.
+        :param **kwargs: Additional keyword arguments.
+
+        :return: A list of key information dictionaries.
+        """
         my_keys = c.my_keys()
 
 
     def key_info(self, key:str = None, netuid='all', timeout=10, update=False, **kwargs):
+        """
+        Get information about the key, including balance and stake information.
+
+        Parameters:
+            key (str): The key to retrieve information for.
+            netuid (str): The network UID to retrieve information for. Defaults to 'all'.
+            timeout (int): The timeout for the request. Defaults to 10.
+            update (bool): Whether to update the information. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict: A dictionary containing the balance and stake information for the key.
+        """
         key = self.resolve_key_ss58(key)
         stake_to = self.stake_to(update=update, netuid=netuid, **kwargs)
         key2address = c.key2address()
@@ -609,6 +905,24 @@ class Subspace(c.Module):
                        names = False,
                         fmt='j' , network=None, update=True,
                          **kwargs) -> Optional['Balance']:
+        """
+        Retrieves the stake to amount for a given key and network.
+
+        Args:
+            key (str, optional): The key to retrieve the stake to amount for. Defaults to None.
+            module_key (Any, optional): The module key to retrieve the stake to amount for. Defaults to None.
+            netuid (int, optional): The netuid to retrieve the stake to amount for. Defaults to 0.
+            block (Optional[int], optional): The block number to retrieve the stake to amount for. Defaults to None.
+            timeout (int, optional): The timeout value for the request. Defaults to 20.
+            names (bool, optional): Whether to retrieve the names of the keys. Defaults to False.
+            fmt (str, optional): The format of the amount. Defaults to 'j'.
+            network (Any, optional): The network to retrieve the stake to amount for. Defaults to None.
+            update (bool, optional): Whether to update the stake to amount. Defaults to True.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Optional['Balance']: The stake to amount for the given key and network.
+        """
 
         if netuid == 'all':
             netuids = self.netuids()
@@ -664,6 +978,23 @@ class Subspace(c.Module):
                        names = False,
                         fmt='j' , network=None, update=True,
                          **kwargs) -> Optional['Balance']:
+        """
+        Calculates the total stake for a given key, module key, netuid, block, timeout, names, fmt, network, and update.
+        
+        Args:
+            key (str, optional): The key to calculate the stake for. Defaults to None.
+            module_key (str, optional): The module key to calculate the stake for. Defaults to None.
+            netuid (int, optional): The netuid to calculate the stake for. Defaults to 'all'.
+            block (Optional[int], optional): The block to calculate the stake for. Defaults to None.
+            timeout (int, optional): The timeout for the calculation. Defaults to 20.
+            names (bool, optional): Whether to include names in the calculation. Defaults to False.
+            fmt (str, optional): The format of the calculation. Defaults to 'j'.
+            network (str, optional): The network to calculate the stake for. Defaults to None.
+            update (bool, optional): Whether to update the calculation. Defaults to True.
+        
+        Returns:
+            Optional['Balance']: The total stake calculated.
+        """
         stake_to = self.get_stake_to(key=key, module_key=module_key, netuid=netuid, block=block, timeout=timeout, names=names, fmt=fmt, network=network, update=update, **kwargs)
         if netuid == 'all':
             return sum([sum(list(x.values())) for x in stake_to])
@@ -675,6 +1006,23 @@ class Subspace(c.Module):
     get_staketo = get_stake_to
     
     def get_value(self, key=None):
+        """
+        Retrieves the value associated with a given key.
+
+        Parameters:
+            key (optional): The key to retrieve the value for. If not provided, the default key will be used.
+
+        Returns:
+            int: The value associated with the key.
+
+        Raises:
+            None
+
+        Example:
+            >>> obj = MyClass()
+            >>> obj.get_value()
+            42
+        """
         key = self.resolve_key_ss58(key)
         value = self.get_balance(key)
         netuids = self.netuids()
@@ -686,12 +1034,38 @@ class Subspace(c.Module):
     
 
     def get_stakers( self, key: str, block: Optional[int] = None, netuid:int = None , fmt='j' ) -> Optional['Balance']:
+        """
+        Retrieves the stakers for a given key.
+
+        Parameters:
+            key (str): The key to retrieve the stakers for.
+            block (Optional[int]): The block number to retrieve the stakers from. Defaults to None.
+            netuid (int): The netuid to retrieve the stakers from. Defaults to None.
+            fmt (str): The format of the returned stakers. Defaults to 'j'.
+
+        Returns:
+            Optional['Balance']: A dictionary containing the stakers for the given key.
+        """
         stake_from = self.get_stake_from(key=key, block=block, netuid=netuid, fmt=fmt)
         key2module = self.key2module(netuid=netuid)
         return {key2module[k]['name'] : v for k,v in stake_from}
     
 
     def get_stake_from( self, key: str, from_key=None, block: Optional[int] = None, netuid:int = None, fmt='j', update=True  ) -> Optional['Balance']:
+        """
+        Retrieves the stake from a specific key in the network.
+
+        Args:
+            key (str): The key to retrieve the stake from.
+            from_key (str, optional): The key to retrieve the stake from specifically. Defaults to None.
+            block (int, optional): The block number to retrieve the stake from. Defaults to None.
+            netuid (int, optional): The network identifier. Defaults to None.
+            fmt (str, optional): The format of the returned balance. Defaults to 'j'.
+            update (bool, optional): Whether to update the state. Defaults to True.
+
+        Returns:
+            Optional['Balance']: The stake amount from the specified key. If `from_key` is provided, the stake amount from the specific key is returned. If no stake is found, None is returned.
+        """
         key = self.resolve_key_ss58( key )
         netuid = self.resolve_netuid( netuid )
         state_from =  [(k, self.format_amount(v, fmt=fmt)) for k, v in self.query( 'StakeFrom', block=block, params=[netuid, key], update=update )]
@@ -704,6 +1078,20 @@ class Subspace(c.Module):
     
     
     def get_total_stake_from( self, key: str, from_key=None, block: Optional[int] = None, netuid:int = None, fmt='j', update=True  ) -> Optional['Balance']:
+        """
+        Calculate the total stake from a given key.
+
+        Parameters:
+            key (str): The key to calculate the total stake from.
+            from_key (Optional[str]): The key to calculate the total stake from, if different from the main key.
+            block (Optional[int]): The block number to calculate the total stake from, if different from the current block.
+            netuid (int): The network unique identifier.
+            fmt (str): The format of the result.
+            update (bool): Whether to update the stake information.
+
+        Returns:
+            Optional['Balance']: The total stake calculated from the given key.
+        """
         stake_from = self.get_stake_from(key=key, from_key=from_key, block=block, netuid=netuid, fmt=fmt, update=update)
         return sum([v for k,v in stake_from])
     
@@ -716,6 +1104,16 @@ class Subspace(c.Module):
 
     @property
     def block(self, network:str=None, trials=100) -> int:
+        """
+        A property function that returns the block for a given network.
+
+        Args:
+            network (str, optional): The network for which to get the block. Defaults to None.
+            trials (int): The number of trials to attempt.
+
+        Returns:
+            int: The block for the specified network.
+        """
         return self.get_block(network=network)
 
 
@@ -723,6 +1121,16 @@ class Subspace(c.Module):
    
     @classmethod
     def archived_blocks(cls, network:str=network, reverse:bool = True) -> List[int]:
+        """
+        Returns a list of archived blocks.
+
+        Args:
+            network (str): The network for which the blocks are being retrieved.
+            reverse (bool): Flag to indicate whether the blocks should be returned in reverse order.
+
+        Returns:
+            List[int]: A list of integers representing the archived blocks.
+        """
         # returns a list of archived blocks 
         
         blocks =  [f.split('.B')[-1].split('.json')[0] for f in cls.glob(f'archive/{network}/state.B*')]
@@ -732,19 +1140,55 @@ class Subspace(c.Module):
 
     @classmethod
     def oldest_archive_path(cls, network:str=network) -> str:
+        """
+        A class method that returns the path to the oldest archive for a given network.
+
+        Args:
+            cls: The class itself.
+            network (str): The network for which the oldest archive path is needed.
+
+        Returns:
+            str: The path to the oldest archive for the specified network.
+        """
         oldest_archive_block = cls.oldest_archive_block(network=network)
         assert oldest_archive_block != None, f"No archives found for network {network}"
         return cls.resolve_path(f'state_dict/{network}/state.B{oldest_archive_block}.json')
     @classmethod
     def newest_archive_block(cls, network:str=network) -> str:
+        """
+        A method to retrieve the newest archive block for a given network.
+
+        Parameters:
+            network (str): The network for which the newest archive block is retrieved.
+
+        Returns:
+            str: The newest archive block.
+        """
         blocks = cls.archived_blocks(network=network, reverse=True)
         return blocks[0]
     @classmethod
     def newest_archive_path(cls, network:str=network) -> str:
+        """
+        Returns the path of the newest archive file for the given network.
+
+        :param network: The name of the network (default: network).
+        :type network: str
+        :return: The path of the newest archive file.
+        :rtype: str
+        """
         oldest_archive_block = cls.newest_archive_block(network=network)
         return cls.resolve_path(f'archive/{network}/state.B{oldest_archive_block}.json')
     @classmethod
     def oldest_archive_block(cls, network:str=network) -> str:
+        """
+        Return the oldest archive block for the given network.
+
+        Args:
+            network (str): The network for which the archived blocks are retrieved.
+
+        Returns:
+            str: The oldest archive block, or None if no blocks are found.
+        """
         blocks = cls.archived_blocks(network=network, reverse=True)
         if len(blocks) == 0:
             return None
@@ -752,6 +1196,24 @@ class Subspace(c.Module):
 
     @classmethod
     def ls_archives(cls, network=network):
+        """
+        Retrieves a list of archives for the specified network.
+
+        Args:
+            network (str, optional): The name of the network to retrieve archives for. Defaults to the network specified in the class.
+
+        Returns:
+            List[str]: A list of archive file paths that match the specified network.
+
+        Raises:
+            None
+
+        Examples:
+            >>> Subspace.ls_archives()
+            ['state_dict/network1.zip', 'state_dict/network2.zip']
+            >>> Subspace.ls_archives(network='network1')
+            ['state_dict/network1.zip']
+        """
         if network == None:
             network = cls.network 
         return [f for f in cls.ls(f'state_dict') if os.path.basename(f).startswith(network)]
@@ -759,12 +1221,29 @@ class Subspace(c.Module):
     
     @classmethod
     def block2archive(cls, network=network):
+        """
+        Generate a dictionary mapping block numbers to archive paths for a given network.
+
+        :param network: The network for which to generate the dictionary. Defaults to the value of the 'network' parameter.
+        :type network: str
+        :return: A dictionary mapping block numbers to archive paths.
+        :rtype: dict
+        """
         paths = cls.ls_archives(network=network)
 
         block2archive = {int(p.split('-')[-1].split('-time')[0]):p for p in paths if p.endswith('.json') and f'{network}.block-' in p}
         return block2archive
 
     def latest_archive_block(self, network=network) -> int:
+        """
+        Returns the latest block number of the archive for a given network.
+
+        Parameters:
+            network (str): The network to get the latest archive block for. Defaults to the network specified in the class.
+
+        Returns:
+            int: The latest block number of the archive.
+        """
         latest_archive_path = self.latest_archive_path(network=network)
         block = int(latest_archive_path.split(f'.block-')[-1].split('-time')[0])
         return block
@@ -774,6 +1253,16 @@ class Subspace(c.Module):
 
     @classmethod
     def time2archive(cls, network=network):
+        """
+        A class method to generate a dictionary mapping block timestamps to archive file paths.
+        
+        Args:
+            cls: The class itself.
+            network: The network to retrieve the archives from.
+        
+        Returns:
+            Dictionary: A dictionary mapping block timestamps to archive file paths.
+        """
         paths = cls.ls_archives(network=network)
 
         block2archive = {int(p.split('time-')[-1].split('.json')[0]):p for p in paths if p.endswith('.json') and f'time-' in p}
@@ -781,6 +1270,17 @@ class Subspace(c.Module):
 
     @classmethod
     def datetime2archive(cls,search=None, network=network):
+        """
+        Converts a datetime object to an archive format based on the specified search criteria.
+
+        Parameters:
+            search (str, optional): The search criteria to filter the datetime objects. Defaults to None.
+            network (str): The network to use for the conversion. Defaults to the value of the 'network' class variable.
+
+        Returns:
+            dict: A dictionary mapping datetime objects to their corresponding archive values. The dictionary is sorted by datetime in ascending order.
+                  If a search criteria is provided, only the datetime objects that match the search criteria will be included in the result.
+        """
         time2archive = cls.time2archive(network=network)
         datetime2archive = {c.time2datetime(time):archive for time,archive in time2archive.items()}
         # sort by datetime
@@ -794,6 +1294,15 @@ class Subspace(c.Module):
 
     @classmethod
     def latest_archive_path(cls, network=network):
+        """
+        Returns the path of the latest archive available for the given network.
+
+        Parameters:
+            network (str): The network for which to retrieve the latest archive path. Defaults to the value of the 'network' variable.
+
+        Returns:
+            str or None: The path of the latest archive if it exists, None otherwise.
+        """
         latest_archive_time = cls.latest_archive_time(network=network)
     
         if latest_archive_time == None:
@@ -803,6 +1312,15 @@ class Subspace(c.Module):
 
     @classmethod
     def latest_archive_time(cls, network=network):
+        """
+        Returns the latest archive time for the given network.
+
+        Parameters:
+            network (str): The network for which to retrieve the latest archive time. Defaults to the value of the `network` parameter in the class.
+
+        Returns:
+            datetime or None: The latest archive time if there are archive times available, None otherwise.
+        """
         time2archive = cls.time2archive(network=network)
         if len(time2archive) == 0:
             return None
@@ -811,16 +1329,42 @@ class Subspace(c.Module):
 
     @classmethod
     def lag(cls, network:str = network):
-        return c.timestamp() - cls.latest_archive_time(network=network) 
+        """
+        Calculate the time lag between the current timestamp and the latest archive time of a network.
 
+        Args:
+            network (str, optional): The network for which to calculate the time lag. Defaults to the value of the `network` parameter.
+
+        Returns:
+            int: The time lag in seconds.
+
+        """
+        return c.timestamp() - cls.latest_archive_time(network=network) 
     @classmethod
     def latest_archive_datetime(cls, network=network):
+        """
+        Retrieves the latest archive datetime for a given network.
+
+        :param network: The network for which to retrieve the latest archive datetime. Defaults to the class variable 'network'.
+        :type network: str
+        :return: The latest archive datetime for the given network.
+        :rtype: datetime.datetime
+        :raises AssertionError: If no archives are found for the given network.
+        """
         latest_archive_time = cls.latest_archive_time(network=network)
         assert latest_archive_time != None, f"No archives found for network {network}"
         return c.time2datetime(latest_archive_time)
 
     @classmethod
     def latest_archive(cls, network=network):
+        """
+        Returns the latest archive of the class.
+
+        :param network: The network to retrieve the archive from. Defaults to the value of the `network` parameter.
+        :type network: Any
+        :return: The latest archive of the class.
+        :rtype: dict
+        """
         path = cls.latest_archive_path(network=network)
         if path == None:
             return {}
@@ -830,6 +1374,23 @@ class Subspace(c.Module):
 
 
     def light_sync(self, network=None, remote:bool=True, netuids=None, local:bool=True, save:bool=True, timeout=20, **kwargs):
+        """
+        Synchronizes the local network with a remote network by fetching the latest data from the remote network and updating the local network accordingly.
+
+        Args:
+            network (str, optional): The name of the network to sync with. Defaults to None.
+            remote (bool, optional): Whether to fetch data from the remote network. Defaults to True.
+            netuids (list, optional): A list of network UIDs to sync. Defaults to None.
+            local (bool, optional): Whether to update the local network. Defaults to True.
+            save (bool, optional): Whether to save the updated data. Defaults to True.
+            timeout (int, optional): The maximum time in seconds to wait for the synchronization to complete. Defaults to 20.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict: A dictionary containing the synchronization result.
+                - 'success' (bool): True if the synchronization was successful, False otherwise.
+                - 'block' (int): The block number at which the synchronization was performed.
+        """
         netuids = self.netuids(network=network, update=True) if netuids == None else netuids
         assert len(netuids) > 0, f"No netuids found for network {network}"
         stake_from_futures = []
@@ -847,6 +1408,17 @@ class Subspace(c.Module):
 
 
     def loop(self, intervals = {'light': 5, 'full': 600}, network=None, remote:bool=True):
+        """
+        A function that loops indefinitely, checking for staleness and syncing data if necessary.
+
+        Parameters:
+            intervals (dict): A dictionary containing the intervals for light and full updates.
+            network (optional): The network to sync data with.
+            remote (bool): Flag indicating whether to execute the function remotely.
+
+        Returns:
+            None
+        """
         if remote:
             return self.remote_fn('loop', kwargs=dict(intervals=intervals, network=network, remote=False))
         last_update = {k:0 for k in intervals.keys()}
@@ -871,10 +1443,33 @@ class Subspace(c.Module):
             
 
     def subnet_exists(self, subnet:str, network=None) -> bool:
+        """
+        Check if a subnet exists in the given network.
+
+        Args:
+            subnet (str): The subnet to check.
+            network (Optional[str]): The network to check in. If not provided, the default network will be used.
+
+        Returns:
+            bool: True if the subnet exists in the network, False otherwise.
+        """
         subnets = self.subnets(network=network)
         return bool(subnet in subnets)
 
     def subnet_emission(self, netuid:str = 0, network=None, block=None, update=False, **kwargs):
+        """
+        Calculate the emission of a subnet.
+
+        Args:
+            netuid (str, optional): The unique identifier of the subnet. Defaults to 0.
+            network (Network, optional): The network object. Defaults to None.
+            block (Block, optional): The block object. Defaults to None.
+            update (bool, optional): Whether to update the emission. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            float: The total emission of the subnet.
+        """
         emissions = self.emission(block=block, update=update, network=network, netuid=netuid, **kwargs)
         if isinstance(emissions[0], list):
             emissions = [sum(e) for e in emissions]
@@ -882,9 +1477,38 @@ class Subspace(c.Module):
     
     
     def unit_emission(self, network=None, block=None, update=False, **kwargs):
+        """
+        Retrieves the unit emission value for a given network and block.
+
+        Args:
+            network (str, optional): The name of the network to query. Defaults to None.
+            block (int, optional): The block number to query. Defaults to None.
+            update (bool, optional): Whether to update the query result. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            The unit emission value.
+
+        Raises:
+            None.
+        """
         return self.query_constant( "UnitEmission", block=block,network=network)
 
     def subnet_state(self,  netuid='all',  network='main', block=None, update=False, fmt='j', **kwargs):
+        """
+        Get the state of a subnet with the given parameters.
+
+        Args:
+            netuid (str): The unique identifier of the subnet. Defaults to 'all'.
+            network (str): The network to which the subnet belongs. Defaults to 'main'.
+            block (NoneType): The block to be considered. Defaults to None.
+            update (bool): Whether to update the state. Defaults to False.
+            fmt (str): The format of the state. Defaults to 'j'.
+            **kwargs: Additional keyword arguments for flexibility.
+
+        Returns:
+            dict: A dictionary containing the state of the subnet, including its parameters and modules.
+        """
 
         subnet_state = {
             'params': self.subnet_params(netuid=netuid, network=network, block=block, update=update, fmt=fmt, **kwargs),
@@ -895,6 +1519,13 @@ class Subspace(c.Module):
         
 
     def subnet_states(self, *args, **kwargs):
+        """
+        Generate the subnet states for each network UID.
+
+        :param args: Additional arguments to pass to the subnet function.
+        :param kwargs: Additional keyword arguments to pass to the subnet function.
+        :return: List of subnet states for each network UID.
+        """
         subnet_states = []
 
         for netuid in c.tqdm(self.netuids()):
@@ -903,12 +1534,49 @@ class Subspace(c.Module):
         return subnet_states
 
     def total_stake(self, network=network, block: Optional[int] = None, netuid:int='all', fmt='j', update=False) -> 'Balance':
+        """
+        Calculate the total stake for a given network.
+
+        Args:
+            network: The network for which the total stake is being calculated.
+            block: The block number to consider (default is None).
+            netuid: The unique identifier for the network stake (default is 'all').
+            fmt: The format of the calculation (default is 'j').
+            update: A flag to indicate if the stake data should be updated.
+
+        Returns:
+            Balance: The total stake amount.
+        """
         return sum([sum([sum(list(map(lambda x:x[1], v))) for v in vv.values()]) for vv in self.stake_to(network=network, block=block,update=update, netuid='all')])
 
     def total_balance(self, network=network, block: Optional[int] = None, fmt='j', update=False) -> 'Balance':
+        """
+        Calculate the total balance for the given network and block, with the option to update the balances. 
+
+        Args:
+            network: The network for which the balance is being calculated.
+            block: The block number for which the balance is being calculated.
+            fmt: The format of the balance calculation.
+            update: A boolean indicating whether to update the balances.
+
+        Returns:
+            Balance: The total balance calculated.
+        """
         return sum(list(self.balances(network=network, block=block, fmt=fmt).values()), update=update)
 
     def mcap(self, network=network, block: Optional[int] = None, fmt='j', update=False) -> 'Balance':
+        """
+        Calculates the MCap (Market Capitalization) of the entity represented by the current instance.
+
+        Args:
+            network (str, optional): The network on which the calculation is performed. Defaults to the default network.
+            block (int, optional): The block number at which the calculation is performed. If None, the latest block is used. Defaults to None.
+            fmt (str, optional): The format in which the amount is returned. Defaults to 'j' (JSON).
+            update (bool, optional): Whether to update the data before calculating the MCap. Defaults to False.
+
+        Returns:
+            Balance: The MCap of the entity represented by the current instance, formatted according to the specified format.
+        """
         total_balance = self.total_balance(network=network, block=block, update=update)
         total_stake = self.total_stake(network=network, block=block, update=update)
         return self.format_amount(total_stake + total_balance, fmt=fmt)
@@ -918,6 +1586,23 @@ class Subspace(c.Module):
         
     @classmethod
     def feature2storage(cls, feature:str):
+        """
+        Convert a feature string to a storage string.
+
+        Args:
+            feature (str): The feature string to be converted.
+
+        Returns:
+            str: The storage string generated from the feature string.
+
+        Example:
+            >>> feature2storage('my_feature')
+            'MyFeature'
+
+        Note:
+            This function iterates over each character in the feature string and converts it to uppercase if it is the first character of a word. It also inserts a capital letter after each underscore in the feature string.
+
+        """
         storage = ''
         capitalize = True
         for i, x in enumerate(feature):
@@ -941,6 +1626,28 @@ class Subspace(c.Module):
                     fmt:str='j', 
                     rows:bool = True
                     ) -> list:
+        """
+        Retrieves the parameters of a subnet.
+
+        Args:
+            netuid (int, optional): The unique identifier of the subnet. Defaults to 0.
+            network (str, optional): The name of the network. Defaults to 'network'.
+            block (Optional[int], optional): The block number. Defaults to None.
+            update (bool, optional): Whether to update the cache. Defaults to False.
+            timeout (int, optional): The timeout value for the query. Defaults to 30.
+            fmt (str, optional): The format of the amount. Defaults to 'j'.
+            rows (bool, optional): Whether to return the parameters in row format. Defaults to True.
+
+        Returns:
+            list: The parameters of the subnet.
+
+        Raises:
+            None
+
+        Example:
+            >>> subnet_params(netuid=0, network='network', block=None, update=False, timeout=30, fmt='j', rows=True)
+            [{'tempo': 10, 'immunity_period': 5, 'min_allowed_weights': 0.1, 'max_allowed_weights': 1.0, 'max_allowed_uids': 100, 'min_stake': 1000, 'founder': 'John', 'founder_share': 0.1, 'incentive_ratio': 0.5, 'trust_ratio': 0.3, 'vote_threshold': 0.5, 'vote_mode': 'majority', 'max_weight_age': 100, 'name': 'Subnet1', 'max_stake': 10000}]
+        """
 
         name2feature  = {
                 'tempo': "Tempo",
@@ -1029,6 +1736,16 @@ class Subspace(c.Module):
 
 
     def subnet2params( self, network: int = None, block: Optional[int] = None ) -> Optional[float]:
+        """
+        Generate subnet parameters for a given network and block, returning a dictionary mapping subnets to their parameters.
+        
+        Args:
+            network (int): The network identifier.
+            block (Optional[int]): The block identifier.
+
+        Returns:
+            Optional[float]: A dictionary mapping subnets to their parameters, or None if no parameters are found.
+        """
         netuids = self.netuids(network=network)
         subnet2params = {}
         netuid2subnet = self.netuid2subnet()
@@ -1038,18 +1755,47 @@ class Subspace(c.Module):
         return subnet2params
     
     def subnet2emission( self, network: int = None, block: Optional[int] = None ) -> Optional[float]:
+        """
+        A function that converts a subnet to an emission, utilizing parameters from subnet2params.
+        
+        :param network: An integer representing the network.
+        :param block: An optional integer representing the block.
+        :return: An optional float value.
+        """
+
         subnet2emission = self.subnet2params(network=network, block=block)
         return subnet2emission
 
     
 
     def subnet2state( self, network: int = None, block: Optional[int] = None ) -> Optional[float]:
+        """
+        Retrieves the state of a subnet.
+
+        Args:
+            network (int, optional): The network ID. Defaults to None.
+            block (Optional[int], optional): The block number. Defaults to None.
+
+        Returns:
+            Optional[float]: The state of the subnet, or None if the state cannot be determined.
+        """
         subnet2state = self.subnet2params(network=network, block=block)
 
         return subnet2state
             
 
     def is_registered( self, key: str, netuid: int = None, block: Optional[int] = None) -> bool:
+        """
+        Checks if a given key is registered in the network.
+
+        Args:
+            key (str): The key to check for registration.
+            netuid (int, optional): The network ID to use for the check. Defaults to None.
+            block (Optional[int], optional): The block number to query at. Defaults to None.
+
+        Returns:
+            bool: True if the key is registered, False otherwise.
+        """
         netuid = self.resolve_netuid( netuid )
         if not c.valid_ss58_address(key):
             name2key = self.name2key(netuid=netuid)
@@ -1060,11 +1806,37 @@ class Subspace(c.Module):
         return is_reged
 
     def get_uid( self, key: str, netuid: int = 0, block: Optional[int] = None, update=False, **kwargs) -> int:
+        """
+        Retrieves the unique identifier (UID) associated with a given key.
+
+        Args:
+            key (str): The key for which to retrieve the UID.
+            netuid (int, optional): The network unique identifier. Defaults to 0.
+            block (Optional[int], optional): The block number to query. Defaults to None.
+            update (bool, optional): Whether to update the UID. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            int: The unique identifier associated with the given key.
+
+        """
         return self.query( 'Uids', block=block, params=[ netuid, key ] , update=update, **kwargs)  
 
 
 
     def register_subnets( self, *subnets, module='vali', **kwargs ) -> Optional['Balance']:
+        """
+        Registers one or more subnets with the specified module and returns a list of responses.
+        
+        Args:
+            *subnets (str or List[str]): The subnets to register. Can be a single subnet or a list of subnets.
+            module (str, optional): The module to register the subnets with. Defaults to 'vali'.
+            **kwargs: Additional keyword arguments to pass to the register function.
+        
+        Returns:
+            Optional[List[str]]: A list of responses, where each response corresponds to the registration of a subnet. 
+                                Returns None if no subnets were registered.
+        """
         if len(subnets) == 1:
             subnets = subnets[0]
         subnets = list(subnets)
@@ -1081,11 +1853,35 @@ class Subspace(c.Module):
         
 
     def total_emission( self, netuid: int = 0, block: Optional[int] = None, fmt:str = 'j', **kwargs ) -> Optional[float]:
+        """
+        Calculate the total emission for a given netuid and block, and return the formatted amount.
+        
+        Args:
+            netuid (int): The netuid for which the emission is calculated (default is 0).
+            block (Optional[int]): The block number for which the emission is calculated (default is None).
+            fmt (str): The format in which the total emission should be returned (default is 'j').
+            **kwargs: Additional keyword arguments.
+            
+        Returns:
+            Optional[float]: The formatted total emission amount.
+        """
         total_emission =  sum(self.emission(netuid=netuid, block=block, **kwargs))
         return self.format_amount(total_emission, fmt=fmt)
 
 
     def regblock(self, netuid: int = 0, block: Optional[int] = None, network=network, update=False ) -> Optional[float]:
+        """
+        Retrieves the registration block for a given network UID and block number.
+
+        Args:
+            netuid (int, optional): The network UID. Defaults to 0.
+            block (Optional[int], optional): The block number. Defaults to None.
+            network (Network, optional): The network object. Defaults to network.
+            update (bool, optional): Whether to update the registration block. Defaults to False.
+
+        Returns:
+            Optional[float]: The registration block for the given network UID and block number, or None if not found.
+        """
         regblock =  self.query_map('RegistrationBlock',block=block, update=update )
         if isinstance(netuid, int):
             regblock = regblock[netuid]
@@ -1109,6 +1905,41 @@ class Subspace(c.Module):
                          block : Optional[int] = None,
                          fmt = 'nanos'
                           ) -> Optional[float]:
+        """
+        Retrieves the global parameters for a given network.
+
+        Args:
+            network (str, optional): The name of the network. Defaults to 'main'.
+            timeout (int, optional): The timeout value for the query. Defaults to 2.
+            update (bool, optional): Whether to update the cache. Defaults to False.
+            block (int, optional): The block number. Defaults to None.
+            fmt (str, optional): The format for amount values. Defaults to 'nanos'.
+
+        Returns:
+            Optional[dict]: A dictionary containing the global parameters, or None if the parameters could not be retrieved.
+                The dictionary includes the following keys:
+                - 'burn_rate': The burn rate.
+                - 'max_name_length': The maximum allowed name length.
+                - 'max_allowed_modules': The maximum allowed modules.
+                - 'max_allowed_subnets': The maximum allowed subnets.
+                - 'max_proposals': The maximum allowed proposals.
+                - 'max_registrations_per_block': The maximum allowed registrations per block.
+                - 'min_burn': The minimum burn amount.
+                - 'min_stake': The minimum stake amount.
+                - 'min_weight_stake': The minimum weight stake.
+                - 'unit_emission': The unit emission.
+                - 'tx_rate_limit': The transaction rate limit.
+                - 'vote_threshold': The global vote threshold.
+                - 'vote_mode': The global vote mode.
+
+        Note:
+            - If the 'update' parameter is set to True, the cache will be updated.
+            - The 'block' parameter specifies the block number to query. If not provided, the latest block will be used.
+            - The 'fmt' parameter specifies the format for the amount values.
+
+        Example:
+            global_params(network='main', timeout=2, update=False, block=None, fmt='nanos')
+        """
         
         path = f'cache/{network}.global_params.json'
         global_params = None if update else self.get(path, None)
@@ -1182,6 +2013,17 @@ class Subspace(c.Module):
     get_balance = balance 
 
     def get_account(self, key = None, network=None, update=True):
+        """
+        Retrieves the account information for a given key and network.
+
+        Args:
+            key (str, optional): The key for which to retrieve the account information. Defaults to None.
+            network (str, optional): The network for which to retrieve the account information. Defaults to None.
+            update (bool, optional): Whether to update the account information. Defaults to True.
+
+        Returns:
+            The account information for the given key and network.
+        """
         self.resolve_network(network)
         key = self.resolve_key_ss58(key)
         account = self.substrate.query(
@@ -1192,6 +2034,17 @@ class Subspace(c.Module):
         return account
     
     def accounts(self, key = None, network=None, update=True, block=None):
+        """
+        Retrieves the account information for a given key and network.
+
+        Args:
+            key (str, optional): The key for which to retrieve the account information. Defaults to None.
+            network (str, optional): The network for which to retrieve the account information. Defaults to None.
+            update (bool, optional): Whether to update the account information. Defaults to True.
+
+        Returns:
+            The account information for the given key and network.
+        """
         self.resolve_network(network)
         key = self.resolve_key_ss58(key)
         accounts = self.query_map(
@@ -1203,6 +2056,21 @@ class Subspace(c.Module):
         return accounts
     
     def balances(self,fmt:str = 'n', network:str = network, block: int = None, n = None, update=False , **kwargs) -> Dict[str, 'Balance']:
+        """
+        Retrieves the balances of all accounts on a specified network.
+
+        Args:
+            fmt (str, optional): The format in which the balances should be returned. Defaults to 'n'.
+            network (str, optional): The network on which the accounts are located. Defaults to the value of the 'network' parameter.
+            block (int, optional): The block number to retrieve the balances at. If not specified, the latest block will be used. Defaults to None.
+            n (int, optional): The number of accounts to retrieve. If not specified, all accounts will be retrieved. Defaults to None.
+            update (bool, optional): Whether to update the account information. Defaults to False.
+            **kwargs: Additional keyword arguments that may be required by other methods.
+
+        Returns:
+            Dict[str, 'Balance']: A dictionary mapping account names to their corresponding balances.
+
+        """
         accounts = self.accounts(network=network, update=update, block=block)
         balances =  {k:v['data']['free'] for k,v in accounts.items()}
         balances = {k: self.format_amount(v, fmt=fmt) for k,v in balances.items()}
@@ -1210,6 +2078,18 @@ class Subspace(c.Module):
     
     
     def resolve_network(self, network: Optional[int] = None, new_connection =False, mode='ws', **kwargs) -> int:
+        """
+        A function to resolve the network connection based on inputs and return the network value.
+        
+        Parameters:
+            network (Optional[int]): An optional integer representing the network.
+            new_connection (bool): A boolean flag indicating if a new connection should be made.
+            mode (str): A string representing the mode of connection.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            int: The resolved network value.
+        """
         if  not hasattr(self, 'substrate') or new_connection:
             self.set_network(network, **kwargs)
 
@@ -1219,6 +2099,16 @@ class Subspace(c.Module):
         return network
     
     def resolve_subnet(self, subnet: Optional[int] = None) -> int:
+        """
+        Resolve the subnet based on the provided subnet ID.
+        
+        Parameters:
+            subnet (Optional[int]): The ID of the subnet to resolve.
+        
+        Returns:
+            int: The resolved subnet ID.
+        """
+        
         if isinstance(subnet, int):
             assert subnet in self.netuids()
             subnet = self.netuid2subnet(netuid=subnet)
@@ -1228,21 +2118,55 @@ class Subspace(c.Module):
 
 
     def subnets(self, **kwargs) -> Dict[int, str]:
+        """
+        Return a dictionary of subnet names based on the provided keyword arguments.
+        """
         return self.subnet_names(**kwargs)
     
     def num_subnets(self, **kwargs) -> int:
+        """
+        Return the number of subnets based on the given keyword arguments.
+        """
         return len(self.subnets(**kwargs))
     
     def netuids(self, network=network, update=False, block=None) -> Dict[int, str]:
+        """
+        Retrieves a list of network uids based on the given network, with options to update and specify a block. Returns a dictionary with integer keys and string values.
+        """
         return list(self.netuid2subnet(network=network, update=update, block=block).keys())
 
     def subnet_names(self, network=network , update=False, block=None, **kwargs) -> Dict[str, str]:
+        """
+        Retrieve subnet names from the given network.
+
+        Args:
+            network: The network from which to retrieve subnet names.
+            update: A boolean indicating whether to update the records.
+            block: The block from which to retrieve subnet names.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            A dictionary mapping subnet names to their corresponding values.
+        """
+
         records = self.query_map('SubnetNames', update=update, network=network, block=block, **kwargs)
         return list(records.values())
     
     netuid2subnet = subnet_names
 
     def subnet2netuid(self, subnet=None, network=network, update=False,  **kwargs ) -> Dict[str, str]:
+        """
+        A function that converts subnet information to network unique identifiers.
+
+        Parameters:
+            subnet (optional): A specific subnet to convert (default is None).
+            network: The network information.
+            update: A boolean flag indicating whether to update the network information.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Dict[str, str]: A dictionary mapping subnet information to network unique identifiers.
+        """
         subnet2netuid =  {v:k for k,v in self.netuid2subnet(network=network, update=update, **kwargs).items()}
         
         if subnet != None:
@@ -1260,9 +2184,17 @@ class Subspace(c.Module):
     subnet_namespace = subnet2netuid
 
     def resolve_netuid(self, netuid: int = None, network=network, update=False) -> int:
-        '''
-        Resolves a netuid to a subnet name.
-        '''
+        """
+        A function to resolve the netuid based on the input netuid, network, and update flag.
+        
+        Parameters:
+            netuid (int, optional): The netuid to resolve. Defaults to None.
+            network: The network to use for resolving the netuid.
+            update (bool, optional): Flag to indicate whether to update the netuid. Defaults to False.
+            
+        Returns:
+            int: The resolved netuid.
+        """
         if netuid == None or  netuid == 'all':
             # If the netuid is not specified, use the default.
             return 0
@@ -1284,12 +2216,38 @@ class Subspace(c.Module):
 
 
     def key2name(self, key: str = None, netuid: int = None) -> str:
+        """
+        A function that maps keys to names. 
+
+        Args:
+            key (str): The key to look up the corresponding name for.
+            netuid (int): The netuid value.
+
+        Returns:
+            str: The name corresponding to the input key.
+        """
         modules = self.keys()
         key2name =  { m['key']: m['name']for m in modules}
         if key != None:
             return key2name[key]
         
     def name2uid(self,name = None, search:str=None, netuid: int = None, network: str = None) -> int:
+        """
+        Retrieves the unique identifier (UID) associated with a given name.
+
+        Args:
+            name (str, optional): The name to retrieve the UID for. Defaults to None.
+            search (str, optional): A substring to search for in the names. Defaults to None.
+            netuid (int, optional): The network UID to use for name retrieval. Defaults to None.
+            network (str, optional): The network to use for name retrieval. Defaults to None.
+
+        Returns:
+            int: The UID associated with the given name.
+
+        Raises:
+            KeyError: If the name is not found in the name-to-UID mapping.
+
+        """
         uid2name = self.uid2name(netuid=netuid, network=network)
         name2uid =  {v:k for k,v in uid2name.items()}
         if name != None:
@@ -1303,6 +2261,16 @@ class Subspace(c.Module):
     
         
     def name2key(self, search:str=None, network=network, netuid: int = 0, update=False ) -> Dict[str, str]:
+        """
+        Returns a dictionary mapping names to keys for a given network and netuid.
+        
+        :param search: (str, optional) A string to search for in the names. Defaults to None.
+        :param network: (str, optional) The network to search in. Defaults to the current network.
+        :param netuid: (int, optional) The netuid to search in. Defaults to 0.
+        :param update: (bool, optional) Whether to update the cache. Defaults to False.
+        
+        :return: (Dict[str, str]) A dictionary mapping names to keys. If search is not None, returns a single key if only one match is found.
+        """
         # netuid = self.resolve_netuid(netuid)
         self.resolve_network(network)
         names = self.names(netuid=netuid, update=update)
@@ -1319,34 +2287,87 @@ class Subspace(c.Module):
 
 
     def key2name(self,search=None, netuid: int = None, network=network, update=False) -> Dict[str, str]:
+        """
+        A function that maps values to keys using the name2key function and returns the result as a dictionary.
+        
+        Parameters:
+            search (optional): The search term to filter the mapping.
+            netuid (optional, int): The unique identifier for the network.
+            network: The network to perform the mapping on.
+            update (optional, bool): A flag indicating whether to update the mapping.
+        
+        Returns:
+            Dict[str, str]: A dictionary with values as keys and keys as values.
+        """
         return {v:k for k,v in self.name2key(search=search, netuid=netuid, network=network, update=update).items()}
         
     def is_unique_name(self, name: str, netuid=None):
+        """
+        Check if the given name is unique within the current namespace.
+
+        Args:
+            name (str): The name to check for uniqueness.
+            netuid (Optional[str]): The netuid to use for the namespace. Defaults to None.
+
+        Returns:
+            bool: True if the name is unique, False otherwise.
+        """
         return bool(name not in self.get_namespace(netuid=netuid))
 
 
 
     def name2inc(self, name: str = None, netuid: int = netuid, nonzero_only:bool=True) -> int:
+        """
+        This function takes in a name, netuid, and nonzero_only flag and returns the incentive associated with the given name. If name is not provided, it returns a sorted dictionary of names and their associated incentives. The parameters are:
+        - name: a string representing the name (default is None)
+        - netuid: an integer representing the netuid (default is the class variable netuid)
+        - nonzero_only: a boolean flag indicating whether to include only nonzero incentives (default is True)
+        The function returns an integer representing the incentive.
+        """
         name2uid = self.name2uid(name=name, netuid=netuid)
         incentives = self.incentive(netuid=netuid)
         name2inc = { k: incentives[uid] for k,uid in name2uid.items() }
 
         if name != None:
             return name2inc[name]
-        
-        name2inc = dict(sorted(name2inc.items(), key=lambda x: x[1], reverse=True))
 
 
-        return name2inc
+        else:
+            name2inc = dict(sorted(name2inc.items(), key=lambda x: x[1], reverse=True))
+    
+    
+            return name2inc
 
 
 
     def top_valis(self, netuid: int = netuid, n:int = 10, **kwargs) -> Dict[str, str]:
+        """
+        A function that returns the top 'n' values from a dictionary after sorting by values.
+
+        Parameters:
+            netuid (int): The unique identifier for the network.
+            n (int): The number of top values to return.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Dict[str, str]: A dictionary containing the top 'n' keys based on their values.
+        """
         name2div = self.name2div(name=None, netuid=netuid, **kwargs)
         name2div = dict(sorted(name2div.items(), key=lambda x: x[1], reverse=True))
         return list(name2div.keys())[:n]
 
     def name2div(self, name: str = None, netuid: int = netuid, nonzero_only: bool = True) -> int:
+        """
+        Generates a dictionary mapping names to their corresponding dividends.
+
+        Args:
+            name (str, optional): The name of the dividend to retrieve. Defaults to None.
+            netuid (int, optional): The unique identifier for the net. Defaults to netuid.
+            nonzero_only (bool, optional): Whether to include only non-zero dividends. Defaults to True.
+
+        Returns:
+            int or dict: If `name` is provided, returns the dividend value for the given name. If `name` is not provided, returns a dictionary mapping names to their dividends.
+        """
         name2uid = self.name2uid(name=name, netuid=netuid)
         dividends = self.dividends(netuid=netuid)
         name2div = { k: dividends[uid] for k,uid in name2uid.items() }
@@ -1360,24 +2381,87 @@ class Subspace(c.Module):
         return name2div
     
     def epoch_time(self, netuid=0, network='main', update=False, **kwargs):
+        """
+        Calculates the epoch time based on the subnet parameters of a specific network.
+
+        Args:
+            netuid (int, optional): The unique identifier of the subnet. Defaults to 0.
+            network (str, optional): The name of the network. Defaults to 'main'.
+            update (bool, optional): Whether to update the subnet parameters. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            int: The calculated epoch time based on the subnet parameters and the block time.
+        """
         return self.subnet_params(netuid=netuid, network=network)['tempo']*self.block_time
 
     def blocks_per_day(self, netuid=None, network=None):
+        """
+        Calculates the number of blocks per day based on the block time.
+
+        :param netuid: Optional parameter representing the network UID.
+        :param network: Optional parameter representing the network.
+        :return: Returns the number of blocks per day.
+        """
         return 24*60*60/self.block_time
     
 
     def epochs_per_day(self, netuid=None, network=None):
+        """
+        Calculates the number of epochs per day based on the epoch time of the network.
+
+        Args:
+            netuid (str, optional): The unique identifier of the network. Defaults to None.
+            network (str, optional): The name of the network. Defaults to None.
+
+        Returns:
+            int: The number of epochs per day.
+        """
         return 24*60*60/self.epoch_time(netuid=netuid, network=network)
     
     def emission_per_epoch(self, netuid=None, network=None):
+        """
+        Calculate the emission per epoch for a given network and network UID.
+
+        Args:
+            netuid (str, optional): The network UID. Defaults to None.
+            network (str, optional): The network name. Defaults to None.
+
+        Returns:
+            float: The emission per epoch.
+        """
         return self.subnet(netuid=netuid, network=network)['emission']*self.epoch_time(netuid=netuid, network=network)
 
 
     def get_block(self, network=None, block_hash=None): 
+        """
+        Retrieves a block from the specified network using the given block hash.
+
+        Args:
+            network (str, optional): The network to retrieve the block from. If not specified, the default network will be used.
+            block_hash (str, optional): The hash of the block to retrieve. If not specified, the latest block will be retrieved.
+
+        Returns:
+            int: The block number of the retrieved block.
+
+        Raises:
+            ValueError: If the network is not specified and no default network is set.
+            ValueError: If the block hash is not specified and no latest block is available.
+        """
         self.resolve_network(network)
         return self.substrate.get_block( block_hash=block_hash)['header']['number']
 
     def block_hash(self, block = None, network='main'): 
+        """
+        Retrieves the hash of a block from the specified network.
+
+        Args:
+            block (int, optional): The block number. If not provided, the default block number is used.
+            network (str, optional): The network to retrieve the block hash from. Defaults to 'main'.
+
+        Returns:
+            str: The hash of the specified block.
+        """
         if block == None:
             block = self.block
 
@@ -1387,12 +2471,26 @@ class Subspace(c.Module):
 
 
     def hash2block(self, network=None, block_hash=None):
+        """
+        A function that takes in a network and block hash, retrieves the block hash using the get_block_hash method, 
+        and then returns the block using the get_block method.
+        """
         block_hash = self.get_block_hash(network=network, block_hash=block_hash)
         return self.get_block(network=network, block_hash=block_hash)
 
     
 
     def seconds_per_epoch(self, netuid=None, network=None):
+        """
+        Calculates the number of seconds per epoch for a given network.
+
+        :param netuid: The unique identifier of the network (default: None)
+        :type netuid: int or None
+        :param network: The network object (default: None)
+        :type network: Network or None
+        :return: The number of seconds per epoch
+        :rtype: int
+        """
         self.resolve_network(network)
         netuid =self.resolve_netuid(netuid)
         return self.block_time * self.subnet(netuid=netuid)['tempo']
@@ -1406,6 +2504,21 @@ class Subspace(c.Module):
                     fmt='j',
                     method='subspace_getModuleInfo',
                     lite = True, **kwargs ) -> 'ModuleInfo':
+        """
+        A method to retrieve module information from a specified network.
+        
+        Parameters:
+            module (str): The module name or key. Defaults to 'vali'.
+            netuid (int): The network UID. Defaults to 0.
+            network (str): The network name. Defaults to 'main'.
+            fmt (str): The format of the data. Defaults to 'j'.
+            method (str): The method to retrieve module information. Defaults to 'subspace_getModuleInfo'.
+            lite (bool): Flag to determine if lite features are used. Defaults to True.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            ModuleInfo: An object containing detailed information about the module.
+        """
         url = self.resolve_url(network=network, mode='http')
 
         if isinstance(module, int):
@@ -1436,6 +2549,9 @@ class Subspace(c.Module):
 
     @staticmethod
     def vec82str(l:list):
+        """
+        Convert a list of integers to a string by joining the characters corresponding to the ASCII values in the list and then stripping any leading or trailing whitespace.
+        """
         return ''.join([chr(x) for x in l]).strip()
 
     def get_modules(self, keys:list = None,
@@ -1444,6 +2560,9 @@ class Subspace(c.Module):
                          netuid=0, fmt='j',
                          include_uids = True,
                            **kwargs) -> List['ModuleInfo']:
+        """
+        A function to retrieve modules based on the provided keys, network, timeout, netuid, format, and additional keyword arguments, returning a list of ModuleInfo objects.
+        """
 
         if keys == None:
             keys = self.my_keys()
@@ -1479,14 +2598,35 @@ class Subspace(c.Module):
         return results
     
     def my_modules(self, **kwargs):
+        """
+        This function takes keyword arguments and calls the get_modules method with the result of my_keys as the keys argument.
+        """
         return self.get_modules(keys=self.my_keys(), **kwargs)
         
     @property
     def null_module(self):
+        """
+        Returns a dictionary representing a null module.
+
+        :return: A dictionary with keys 'name', 'key', 'uid', 'address', 'stake', 'balance', 'emission', 'incentive', 'dividends', 'stake_to', 'stake_from', and 'weight'. The values are set to None, 0, and empty dictionaries and lists respectively.
+        :rtype: dict
+        """
         return {'name': None, 'key': None, 'uid': None, 'address': None, 'stake': 0, 'balance': 0, 'emission': 0, 'incentive': 0, 'dividends': 0, 'stake_to': {}, 'stake_from': {}, 'weight': []}
         
         
     def name2module(self, name:str = None, netuid: int = None, **kwargs) -> 'ModuleInfo':
+        """
+        Return the module information for the given name or the entire mapping of module names to ModuleInfo objects.
+        
+        Args:
+            name (str): The name of the module. Defaults to None.
+            netuid (int): The network ID. Defaults to None.
+            **kwargs: Additional keyword arguments for filtering the modules.
+        
+        Returns:
+            ModuleInfo or dict: If name is provided, returns the ModuleInfo object for the given name. 
+            If name is not provided, returns a mapping of module names to ModuleInfo objects.
+        """
         modules = self.modules(netuid=netuid, **kwargs)
         name2module = { m['name']: m for m in modules }
         default = {}
@@ -1499,6 +2639,18 @@ class Subspace(c.Module):
         
         
     def key2module(self, key: str = None, netuid: int = None, default: dict =None, **kwargs) -> Dict[str, str]:
+        """
+        Retrieves the module information associated with a given key or netuid.
+
+        Args:
+            key (str, optional): The key to retrieve the module information for. Defaults to None.
+            netuid (int, optional): The netuid to retrieve the module information for. Defaults to None.
+            default (dict, optional): The default value to return if no module information is found. Defaults to None.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict: A dictionary containing the module information associated with the given key or netuid.
+        """
         modules = self.modules(netuid=netuid, **kwargs)
         key2module =  { m['key']: m for m in modules }
         
@@ -1508,6 +2660,16 @@ class Subspace(c.Module):
         return key2module
         
     def module2key(self, module: str = None, **kwargs) -> Dict[str, str]:
+        """
+        Returns a dictionary mapping module names to their corresponding keys.
+
+        Parameters:
+            module (str, optional): The name of a specific module. If provided, only the key for that module will be returned. Defaults to None.
+            **kwargs: Additional keyword arguments to filter the modules.
+
+        Returns:
+            dict: A dictionary mapping module names to their corresponding keys. If `module` is not None, only the key for that module will be returned.
+        """
         modules = self.modules(**kwargs)
         module2key =  { m['name']: m['key'] for m in modules }
         
@@ -1520,6 +2682,16 @@ class Subspace(c.Module):
     
 
     def module2stake(self,*args, **kwargs) -> Dict[str, str]:
+        """
+        Returns a dictionary mapping module names to their corresponding stake values.
+
+        Parameters:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            A dictionary with module names as keys and their corresponding stake values as values.
+        """
         
         module2stake =  { m['name']: m['stake'] for m in self.modules(*args, **kwargs) }
         
@@ -1527,11 +2699,45 @@ class Subspace(c.Module):
 
     @classmethod
     def get_feature(cls, feature, **kwargs):
+        """
+        Retrieves a specific feature using the given feature name and optional keyword arguments.
+
+        :param feature: The name of the feature to retrieve.
+        :param kwargs: Optional keyword arguments to be passed to the feature method.
+        :return: The result of the feature method execution.
+        """
         self = cls()
         return getattr(self, feature)(**kwargs)
 
 
     def format_module(self, module: 'ModuleInfo', fmt:str='j', features=None) -> 'ModuleInfo':
+        """
+        Formats the given module information according to the specified format and features.
+
+        Args:
+            module (ModuleInfo): The module information to be formatted.
+            fmt (str, optional): The format in which the amounts should be formatted. Defaults to 'j'.
+            features (list, optional): The list of features to include in the formatted module. Defaults to None.
+
+        Returns:
+            ModuleInfo: The formatted module information.
+
+        Raises:
+            None
+
+        Examples:
+            >>> module = {'emission': 100, 'stake': 50, 'incentive': 0.5, 'dividends': 0.25, 'stake_from': {'a': 20, 'b': 30}}
+            >>> format_module(module, fmt='p')
+            {'emission': '100.00', 'stake': '50.00', 'incentive': '0.50', 'dividends': '0.25', 'stake_from': [['a', '20.00'], ['b', '30.00']]}
+
+        Note:
+            - If the 'stake_from' feature is included in the features list but the 'stake' feature is not, the 'stake' feature is added to the features list.
+            - The 'emission', 'stake', 'incentive', and 'dividends' values in the module dictionary are formatted according to the specified format.
+            - The 'stake_from' value in the module dictionary is converted to a list of lists, where each inner list contains the key-value pair of the stake amount formatted according to the specified format.
+            - If the 'stake_from' value in the module dictionary is a dictionary, it is converted to a list of lists before formatting.
+            - If the features list is not None, only the specified features are included in the formatted module dictionary.
+
+        """
         if 'stake_from' in features and 'stake' not in features:
             features += ['stake']
         for k in ['emission', 'stake']:
@@ -1586,6 +2792,27 @@ class Subspace(c.Module):
                 page = None,
                 **kwargs
                 ) -> Dict[str, 'ModuleInfo']:
+        """
+        A function to fetch modules with various search parameters and options.
+        
+        Parameters:
+            search (str): The search term to filter modules. Defaults to None.
+            network (str): The network to fetch modules from. Defaults to 'main'.
+            netuid (int): The unique identifier for the network. Defaults to 0.
+            block (Optional[int]): The block number. Defaults to None.
+            fmt (str): The format of the fetched modules. Defaults to 'nano'.
+            features (List[str]): The list of features to fetch. Defaults to module_features.
+            timeout: The timeout for fetching modules. Defaults to 100.
+            update (bool): Flag to indicate if modules should be updated. Defaults to False.
+            sortby (str): The parameter to sort the fetched modules by. Defaults to 'emission'.
+            page_size: The number of modules per page. Defaults to 100.
+            lite (bool): Flag to indicate lite version. Defaults to True.
+            page: The page number for pagination. Defaults to None.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            Dict[str, 'ModuleInfo']: A dictionary containing information about the fetched modules.
+        """
         if search == 'all':
             netuid = search
             search = None
@@ -1709,17 +2936,51 @@ class Subspace(c.Module):
 
 
     def min_stake(self, netuid: int = 0, network: str = 'main', fmt:str='j', **kwargs) -> int:
+        """
+        Calculate the minimum stake for a given `netuid` and `network`.
+
+        :param netuid: An integer representing the netuid. Default is 0.
+        :param network: A string representing the network. Default is 'main'.
+        :param fmt: A string representing the format. Default is 'j'.
+        :param **kwargs: Additional keyword arguments.
+        :return: An integer representing the minimum stake.
+        """
         min_stake = self.query('MinStake', netuid=netuid, network=network, **kwargs)
         return self.format_amount(min_stake, fmt=fmt)
 
     def registrations_per_block(self, network: str = network, fmt:str='j', **kwargs) -> int:
+        """
+        Get the number of registrations per block for the specified network.
+
+        Args:
+            network (str): The name of the network to query. Defaults to the value of the `network` parameter.
+            fmt (str): The format of the response. Defaults to 'j'.
+            **kwargs: Additional keyword arguments to pass to the query function.
+
+        Returns:
+            int: The number of registrations per block.
+        """
         return self.query('RegistrationsPerBlock', params=[], network=network, **kwargs)
     regsperblock = registrations_per_block
     
     def max_registrations_per_block(self, network: str = network, fmt:str='j', **kwargs) -> int:
+        """
+        A function that calculates the maximum number of registrations per block. 
+
+        Parameters:
+            network (str): The network to query for.
+            fmt (str): The format of the query (default is 'j').
+            **kwargs: Additional keyword arguments to pass to the query function.
+
+        Returns:
+            int: The maximum number of registrations per block.
+        """
         return self.query('MaxRegistrationsPerBlock', params=[], network=network, **kwargs)
  
     def uids(self, netuid = 0, **kwargs):
+        """
+        Return a list of unique identifiers for the given network UID and additional keyword arguments.
+        """
         return list(self.uid2key(netuid=netuid, **kwargs).keys())
    
     def keys(self,
@@ -1727,6 +2988,18 @@ class Subspace(c.Module):
               update=False, 
              network : str = 'main', 
              **kwargs) -> List[str]:
+        """
+        A description of the entire function, its parameters, and its return types.
+        
+            Parameters:
+                netuid (int): The netuid parameter for the function.
+                update (bool): The update parameter for the function.
+                network (str): The network parameter for the function.
+                **kwargs: Additional keyword arguments.
+            
+            Returns:
+                List[str]: A list of keys.
+        """
         keys =  list(self.query_map('Keys', netuid=netuid, update=update, network=network, **kwargs).values())
         return keys
 
@@ -1736,6 +3009,20 @@ class Subspace(c.Module):
              network=network, 
              return_dict = True,
              **kwargs):
+        """
+        Retrieves the key associated with a given unique identifier (UID).
+        
+        Args:
+            uid (int, optional): The unique identifier of the key to retrieve. Defaults to None.
+            netuid (int, optional): The network unique identifier. Defaults to 0.
+            update (bool, optional): Whether to update the key mapping. Defaults to False.
+            network (str, optional): The network to query. Defaults to 'network'.
+            return_dict (bool, optional): Whether to return the key mapping as a dictionary. Defaults to True.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            dict or str: The key associated with the given UID, or the entire key mapping if UID is None.
+        """
         netuid = self.resolve_netuid(netuid)
         uid2key =  self.query_map('Keys',  netuid=netuid, update=update, network=network, **kwargs)
         # sort by uid
@@ -1745,6 +3032,19 @@ class Subspace(c.Module):
     
 
     def key2uid(self, key = None, network:str=  'main' ,netuid: int = 0, update=False, **kwargs):
+        """
+        Generates a mapping from values to keys based on the given network and netuid.
+        
+        Parameters:
+            key (optional): The key to be used for mapping. Default is None.
+            network (str): The network to be used. Default is 'main'.
+            netuid (int): The netuid to be used. Default is 0.
+            update (bool): A flag indicating whether to update the mapping. Default is False.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            Either the value corresponding to the provided key, or the entire mapping if key is not provided.
+        """
         key2uid =  {v:k for k,v in self.uid2key(network=network, netuid=netuid, update=update, **kwargs).items()}
         if key != None:
             key_ss58 = self.resolve_key_ss58(key)
@@ -1753,6 +3053,17 @@ class Subspace(c.Module):
         
 
     def uid2name(self, netuid: int = 0, update=False,  **kwargs) -> List[str]:
+        """
+        Converts a network UID to a list of names.
+
+        Args:
+            netuid (int, optional): The network UID to be converted. Defaults to 0.
+            update (bool, optional): Whether to update the query map. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            List[str]: A list of names corresponding to the network UID.
+        """
         netuid = self.resolve_netuid(netuid)
         names = {k: v for k,v in enumerate(self.query_map('Name', update=update,**kwargs)[netuid])}
         names = {k: names[k] for k in sorted(names)}
@@ -1762,6 +3073,17 @@ class Subspace(c.Module):
               netuid: int = 0, 
               update=False,
                 **kwargs) -> List[str]:
+        """
+        Function to retrieve names based on netuid, with an option to update and additional keyword arguments.
+
+        Args:
+            netuid (int): The netuid parameter (default is 0).
+            update (bool): A flag to indicate whether to update the names.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            List[str]: A list of names retrieved based on the netuid.
+        """
         names = self.query_map('Name', update=update, netuid=netuid,**kwargs)
         if isinstance(netuid, int):
             names = list(names.values())
@@ -1771,6 +3093,21 @@ class Subspace(c.Module):
         return names
 
     def addresses(self, netuid: int = 0, update=False, **kwargs) -> List[str]:
+        """
+        Retrieves a list of addresses based on the given parameters.
+
+        Args:
+            netuid (int, optional): The netuid to filter the addresses by. Defaults to 0.
+            update (bool, optional): Whether to update the addresses. Defaults to False.
+            **kwargs: Additional keyword arguments to pass to the query_map method.
+
+        Returns:
+            List[str]: A list of addresses.
+
+        Note:
+            - If the `netuid` parameter is an integer, the function returns a list of addresses as values of the `addresses` dictionary.
+            - If the `netuid` parameter is not an integer, the function returns a dictionary where each key is a key from the `addresses` dictionary and each value is a list of values from the corresponding value in the `addresses` dictionary.
+        """
         addresses = self.query_map('Address',netuid=netuid, update=update, **kwargs)
         
         if isinstance(netuid, int):
@@ -1781,6 +3118,21 @@ class Subspace(c.Module):
         return addresses
 
     def namespace(self, search=None, netuid: int = 0, update:bool = False, timeout=30, local=False, max_age=1000, **kwargs) -> Dict[str, str]:
+        """
+        A function that retrieves namespace information based on the provided parameters.
+
+        Args:
+            search (str): The search string used to filter the namespace dictionary.
+            netuid (int): The netuid to be used for the namespace retrieval.
+            update (bool): A flag indicating whether to update the namespace information.
+            timeout (int): The timeout value for the namespace retrieval operation.
+            local (bool): A flag indicating whether to filter the namespace based on local IP.
+            max_age (int): The maximum age of the namespace information.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Dict[str, str]: A dictionary containing the namespace information.
+        """
         namespace = {}  
 
         futures = [c.submit(self.names, kwargs=dict(netuid=netuid, update=update, max_age=max_age,**kwargs), timeout=timeout), 
@@ -1799,27 +3151,88 @@ class Subspace(c.Module):
 
     
     def weights(self,  netuid = 0,  network = 'main', update=False, **kwargs) -> list:
+        """
+        Retrieve weights for a given network by querying the 'Weights' table.
+
+        Args:
+            netuid (int): The unique identifier for the network.
+            network (str): The name of the network.
+            update (bool): Whether to update the weights.
+            **kwargs: Additional keyword arguments for the query.
+
+        Returns:
+            list: The weights retrieved from the query.
+        """
         weights =  self.query_map('Weights',netuid=netuid, network = network, update=update, **kwargs)
 
         return weights
 
     def proposals(self, netuid = netuid, block=None,   network="main", nonzero:bool=False, update:bool = False,  **kwargs):
+        """
+        A description of the entire function, its parameters, and its return types.
+        
+            :param netuid: 
+            :param block: 
+            :param network: 
+            :param nonzero: 
+            :param update: 
+            :param kwargs: 
+            :return: 
+        """
         proposals = [v for v in self.query_map('Proposals', network = 'main', block=block, update=update, **kwargs)]
         return proposals
 
     def save_weights(self, nonzero:bool = False, network = "main",**kwargs) -> list:
+        """
+        Save the weights of the model.
+
+        Args:
+            nonzero (bool, optional): Whether to save only the nonzero weights. Defaults to False.
+            network (str, optional): The name of the network. Defaults to "main".
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict: A dictionary indicating the success of the operation and a message.
+                - success (bool): True if the weights were saved successfully, False otherwise.
+                - msg (str): A message indicating the status of the operation.
+
+        """
         self.query_map('Weights',network = 'main', update=True, **kwargs)
         return {'success': True, 'msg': 'Saved weights'}
 
     def pending_deregistrations(self, netuid = 0, update=False, **kwargs):
+        """
+        Retrieves the list of pending deregistrations for a specific netuid.
+
+        Args:
+            netuid (int, optional): The netuid for which to retrieve the pending deregistrations. Defaults to 0.
+            update (bool, optional): Whether to update the query map before retrieving the pending deregistrations. Defaults to False.
+            **kwargs: Additional keyword arguments to be passed to the query_map function.
+
+        Returns:
+            list: The list of pending deregistrations for the specified netuid.
+        """
         pending_deregistrations = self.query_map('PendingDeregisterUids',update=update,**kwargs)[netuid]
         return pending_deregistrations
     
     def num_pending_deregistrations(self, netuid = 0, **kwargs):
+        """
+        A function to calculate the number of pending deregistrations based on the given netuid and optional keyword arguments.
+        """
         pending_deregistrations = self.pending_deregistrations(netuid=netuid, **kwargs)
         return len(pending_deregistrations)
         
     def emissions(self, netuid = 0, network = "main", block=None, update=False, **kwargs):
+        """
+        This function retrieves emissions data based on the specified parameters.
+
+        :param netuid: (int) The unique identifier of the network.
+        :param network: (str) The name of the network.
+        :param block: (str) The block to retrieve emissions data for.
+        :param update: (bool) Flag to indicate whether to update the emissions data.
+        :param kwargs: Additional keyword arguments for query_vector function.
+        :return: The result of the query_vector function with the specified parameters.
+        """
 
         return self.query_vector('Emission', network=network, netuid=netuid, block=block, update=update, **kwargs)
     
@@ -1831,6 +3244,19 @@ class Subspace(c.Module):
                   network = "main", 
                   update:bool = False, 
                   **kwargs):
+        """
+        Retrieves the incentives for a given netuid, block, network, and update status.
+
+        Args:
+            netuid (int, optional): The netuid to retrieve incentives for. Defaults to 0.
+            block (Any, optional): The block to retrieve incentives for. Defaults to None.
+            network (str, optional): The network to retrieve incentives for. Defaults to "main".
+            update (bool, optional): Whether to update the incentives. Defaults to False.
+            **kwargs: Additional keyword arguments to pass to the query_vector method.
+
+        Returns:
+            Any: The result of the query_vector method.
+        """
         return self.query_vector('Incentive', netuid=netuid, network=network, block=block, update=update, **kwargs)
     incentive = incentives
 
@@ -1840,11 +3266,38 @@ class Subspace(c.Module):
                   network = "main", 
                   update:bool = False, 
                   **kwargs):
+        """
+        Executes a trust query on the specified network for the given netuid.
+
+        Args:
+            netuid (int, optional): The unique identifier for the netuid. Defaults to 0.
+            block (Any, optional): The block to be used in the query. Defaults to None.
+            network (str, optional): The network to be used in the query. Defaults to "main".
+            update (bool, optional): Indicates whether to update the query. Defaults to False.
+            **kwargs: Additional keyword arguments to be passed to the query.
+
+        Returns:
+            Any: The result of the trust query.
+
+        """
         return self.query_vector('Trust', netuid=netuid, network=network, block=block, update=update, **kwargs)
     
     incentive = incentives
     
     def query_vector(self, name='Trust', netuid = 0, network="main", update=False, **kwargs):
+        """
+        A function to generate a query vector based on the provided parameters.
+        
+        Parameters:
+            name (str): The name parameter for the query vector.
+            netuid (int): The netuid parameter for the query vector.
+            network (str): The network parameter for the query vector.
+            update (bool): A flag indicating whether to update the query vector.
+            **kwargs: Additional keyword arguments for customization.
+        
+        Returns:
+            dict: The generated query vector based on the provided parameters.
+        """
         if isinstance(netuid, int):
             query_vector = self.query(name,  netuid=netuid, network=network, update=update, **kwargs)
         else:
@@ -1854,15 +3307,40 @@ class Subspace(c.Module):
         return query_vector
     
     def last_update(self, netuid = 0, network='main', update=False, **kwargs):
+        """
+        Method to retrieve the last update with optional parameters netuid, network, update, and additional keyword arguments.
+        Returns the result of the query_vector method with the 'LastUpdate' command and the specified parameters.
+        """
         return self.query_vector('LastUpdate', netuid=netuid,  network=network, update=update, **kwargs)
 
     def dividends(self, netuid = 0, network = 'main',  update=False, **kwargs):
+        """
+        Retrieves the dividends for a specific entity.
+
+        Args:
+            netuid (int, optional): The unique identifier of the entity. Defaults to 0.
+            network (str, optional): The network on which the entity operates. Defaults to 'main'.
+            update (bool, optional): Whether to update the dividends data. Defaults to False.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            The dividends data for the specified entity.
+
+        """
         return  self.query_vector('Dividends', netuid=netuid, network=network,  update=update,  **kwargs)
             
 
     dividend = dividends
 
     def registration_block(self, netuid: int = 0, update=False, **kwargs):
+        """
+        A method that retrieves registration blocks based on specified parameters.
+
+        :param netuid: An integer representing the netuid (default 0).
+        :param update: A boolean indicating whether to update the registration blocks.
+        :param kwargs: Additional keyword arguments for query customization.
+        :return: A list of registration blocks.
+        """
         registration_blocks = self.query_map('RegistrationBlock', netuid=netuid, update=update, **kwargs)
         return registration_blocks
 
@@ -1873,6 +3351,20 @@ class Subspace(c.Module):
                     update=False,
                     network=network,
                     fmt='nano', **kwargs) -> List[Dict[str, Union[str, int]]]:
+        """
+        Retrieve stake information for a specific network or all networks, formatted in the specified format.
+
+        Args:
+            netuid: The network ID to retrieve stake information for. Defaults to 0.
+            block: The block to retrieve stake information for. Defaults to None.
+            update: A boolean indicating whether to update the stake information. Defaults to False.
+            network: The network to retrieve stake information for. Defaults to the network attribute of the class.
+            fmt: The format in which to return the stake information. Defaults to 'nano'.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            List of dictionaries containing the formatted stake information.
+        """
         
         stake_from = self.query_map('StakeFrom', netuid=netuid, block=block, update=update, network=network, **kwargs)
         format_tuples = lambda x: [[_k, self.format_amount(_v, fmt=fmt)] for _k,_v in x]
@@ -1886,6 +3378,17 @@ class Subspace(c.Module):
     
 
     def get_archive_blockchain_archives(self, netuid=netuid, network:str=network, **kwargs) -> List[str]:
+        """
+        A function to retrieve blockchain archives based on network and datetime,
+        and break them into blocks. Returns a list of dictionaries containing 
+        blockchain id, archive path, and block number.
+        Parameters:
+            netuid: The unique identifier of the network (default: netuid)
+            network: The network to retrieve archives from
+            **kwargs: Additional keyword arguments
+        Returns:
+            List[str]: A list of dictionaries containing blockchain id, archive path, and block number
+        """
 
         datetime2archive =  self.datetime2archive(network=network, **kwargs) 
         break_points = []
@@ -1907,6 +3410,17 @@ class Subspace(c.Module):
 
 
     def get_archive_blockchain_info(self, netuid=netuid, network:str=network, **kwargs) -> List[str]:
+        """
+        Retrieves the blockchain information for the given network and netuid.
+
+        Args:
+            netuid (str): The netuid associated with the network.
+            network (str): The name of the network.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            List[str]: A list of blockchain information.
+        """
 
         datetime2archive =  self.datetime2archive(network=network, **kwargs) 
         break_points = []
@@ -1934,6 +3448,14 @@ class Subspace(c.Module):
 
     @classmethod
     def most_recent_archives(cls,):
+        """
+        Returns the most recent archives.
+
+        This class method searches for archives using the `search_archives` method and returns the result.
+
+        Returns:
+            list: A list of the most recent archives.
+        """
         archives = cls.search_archives()
         return archives
     
@@ -1941,6 +3463,9 @@ class Subspace(c.Module):
     def num_archives(cls, *args, **kwargs):
         return len(cls.datetime2archive(*args, **kwargs))
 
+        """
+        Return the number of archives created using the given arguments.
+        """
     def keep_archives(self, loockback_hours=24, end_time='now'):
         all_archive_paths = self.ls_archives()
         kept_archives = self.search_archives(lookback_hours=loockback_hours, end_time=end_time)
@@ -1959,6 +3484,20 @@ class Subspace(c.Module):
                     netuid=0, 
                     n = 1000,
                     **kwargs):
+        """
+        Search archives within a given time frame and return the relevant data.
+        
+        Args:
+            lookback_hours (int): Number of hours to look back for archives (default is 24).
+            end_time (str): End time for the search (default is 'now').
+            start_time (Union[int, str], optional): Start time for the search. If not provided, it is calculated based on the lookback hours and end time.
+            netuid: Network UID for the search.
+            n: Number of archives to return.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            list: List of dictionaries containing archive data.
+        """
 
 
         if end_time == 'now':
@@ -2034,6 +3573,19 @@ class Subspace(c.Module):
                      netuid= 0 , 
                      update=True,  
                      **kwargs):
+        """
+        A class method to archive history.
+
+        Args:
+            *args: Variable length argument list.
+            network: The network to archive history for.
+            netuid: The network unique identifier.
+            update: Whether to update the archive.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            The archived history.
+        """
         
         path = f'history/{network}.{netuid}.json'
 
@@ -2047,19 +3599,66 @@ class Subspace(c.Module):
         return archive_history
         
     def key_usage_path(self, key:str):
+        """
+        Generate a path based on the provided key by resolving its ss58 and appending it to 'key_usage/'.
+        
+        Parameters:
+        key (str): The key to generate the path for.
+        
+        Returns:
+        str: The generated path based on the key.
+        """
         key_ss58 = self.resolve_key_ss58(key)
         return f'key_usage/{key_ss58}'
 
     def key_used(self, key:str):
+        """ 
+        shows the current keys being used
+        """
         return self.exists(self.key_usage_path(key))
-    
+
     def use_key(self, key:str):
+        """
+        Uses the specified key by putting the current time to the key usage path.
+
+        Parameters:
+            key (str): The key to be used.
+
+        Returns:
+            None
+        """
         return self.put(self.key_usage_path(key), c.time())
     
     def unuse_key(self, key:str):
+        """
+        Remove the specified key from key usage and return the result.
+        
+        Parameters:
+            key (str): The key to be removed from key usage.
+            
+        Returns:
+            The result of removing the specified key from key usage.
+        """
         return self.rm(self.key_usage_path(key))
     
     def test_key_usage(self):
+        """
+        Test the key usage functionality.
+
+        This function performs a series of tests to ensure that the key usage functionality is working correctly. It does the following steps:
+        1. Adds a test key to the key path 'test_key_usage'.
+        2. Uses the test key.
+        3. Asserts that the test key is marked as used.
+        4. Unuses the test key.
+        5. Asserts that the test key is marked as not used.
+        6. Removes the test key from the key path.
+        7. Asserts that the test key does not exist.
+        
+        Returns:
+            dict: A dictionary containing the test result. The dictionary has two keys:
+                - 'success' (bool): True if all the tests pass, False otherwise.
+                - 'msg' (str): A message indicating the test result for the specific key path.
+        """
         key_path = 'test_key_usage'
         c.add_key(key_path)
         self.use_key(key_path)
@@ -2072,6 +3671,17 @@ class Subspace(c.Module):
         
 
     def get_nonce(self, key:str=None, network=None, **kwargs):
+        """
+        Get the nonce for a given key and network.
+
+        Args:
+            key (str, optional): The key to use for getting the nonce. Defaults to None.
+            network (str, optional): The network to use for getting the nonce. Defaults to None.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            The nonce for the given key and network.
+        """
         key_ss58 = self.resolve_key_ss58(key)
         self.resolve_network(network)   
         return self.substrate.get_account_nonce(key_ss58)
@@ -2142,6 +3752,9 @@ class Subspace(c.Module):
 
     @classmethod
     def check(cls, netuid=0):
+        """
+        Check function for validating various aspects of the input data.
+        """
         self = cls()
 
         # c.print(len(self.modules()))
@@ -2169,6 +3782,25 @@ class Subspace(c.Module):
               include_total : bool = True,
               **kwargs
               ):
+        """
+        A method to calculate statistics based on the given parameters and return the result as a dataframe.
+        
+        Args:
+            search (str): A string to search within the dataframe.
+            netuid (int): The unique identifier for the network.
+            network: The network to be used for calculations.
+            df (bool): A flag to indicate whether to return the result as a dataframe or not.
+            update (bool): A flag to indicate whether to update the statistics or not.
+            local (bool): A flag to indicate whether to use local statistics or not.
+            cols (list): A list of columns to include in the result dataframe.
+            sort_cols: A list of columns to use for sorting the dataframe.
+            fmt (str): The format of the result.
+            include_total (bool): A flag to indicate whether to include the total in the result or not.
+            **kwargs: Additional keyword arguments.
+            
+        Returns:
+            DataFrame or list: The calculated statistics as a dataframe or a list of records.
+        """
 
         modules = self.my_modules(netuid=netuid, update=update, network=network, fmt=fmt, **kwargs)
         stats = []
@@ -2206,16 +3838,38 @@ class Subspace(c.Module):
 
     @classmethod
     def status(cls):
+        """
+        Returns the status of the current working directory.
+
+        :return: The status of the current working directory.
+        :rtype: str
+        """
         return c.status(cwd=cls.libpath)
 
 
     def storage_functions(self, network=network, block_hash = None):
+        """
+        This function takes in a network and optional block_hash parameter and resolves the network. 
+        It then returns the metadata storage functions using the provided block_hash.
+        """
         self.resolve_network(network)
         return self.substrate.get_metadata_storage_functions( block_hash=block_hash)
     storage_fns = storage_functions
         
 
     def storage_names(self,  search=None, network=network, block_hash = None):
+        """
+        Returns a list of storage names for a given substrate network. 
+
+        :param search: (Optional) A string to search for in the storage names. Default is None.
+        :type search: str
+        :param network: (Optional) The substrate network to use. Default is the network specified in the class.
+        :type network: str
+        :param block_hash: (Optional) The block hash to use. Default is None.
+        :type block_hash: str
+        :return: A list of storage names.
+        :rtype: list
+        """
         self.resolve_network(network)
         storage_names =  [f['storage_name'] for f in self.substrate.get_metadata_storage_functions( block_hash=block_hash)]
         if search != None:
@@ -2230,6 +3884,19 @@ class Subspace(c.Module):
                    mode='http', 
                    save = False,
                    block=None):
+        """
+        A function to get the state dictionary with various features and parameters, and optionally save it to a specified path.
+        
+        :param timeout: int, the timeout for network requests
+        :param network: str, the network to use
+        :param netuid: str, the unique identifier for the network
+        :param update: bool, whether to update the state dictionary
+        :param mode: str, the mode of the network requests
+        :param save: bool, whether to save the state dictionary
+        :param block: int, the block number
+        
+        :return: dict, the response object containing the success status, message, latency, and block information
+        """
         
         
         start_time = c.time()
@@ -2303,10 +3970,25 @@ class Subspace(c.Module):
     
 
     def sync(self,*args, **kwargs):
+        """
+        Perform a synchronous operation with the given arguments and keyword arguments. 
+        Returns the state dictionary with the specified arguments saved and updated.
+        """
         return  self.state_dict(*args, save=True, update=True, **kwargs)
 
     @classmethod
     def test(cls):
+        """
+        This is a class method that tests the functionality of the Subspace class.
+        It creates an instance of the Subspace class and performs the following tests:
+        
+        - Tests if the number of subspaces is greater than 0.
+        - Tests if the market capitalization is a float.
+        - Tests if the name-to-key dictionary has the same length as the number of subspaces.
+        - Prints the statistics of the subspaces.
+        
+        This method does not take any parameters and does not return any values.
+        """
         s = c.module('subspace')()
         n = s.n()
         assert isinstance(n, int)
@@ -2324,11 +4006,35 @@ class Subspace(c.Module):
         assert isinstance(stats, list) 
 
     def check_storage(self, block_hash = None, network=network):
+        """
+        Retrieves the metadata storage functions for a given block hash.
+
+        Args:
+            block_hash (str, optional): The hash of the block to retrieve metadata for. If not provided, the latest block will be used. Defaults to None.
+            network (str, optional): The network to use for retrieving the metadata. Defaults to the default network set in the class.
+
+        Returns:
+            dict: A dictionary containing the metadata storage functions for the specified block hash.
+
+        Raises:
+            None
+
+        Examples:
+            >>> my_object = MyClass()
+            >>> metadata = my_object.check_storage(block_hash='0x1234567890abcdef', network='mainnet')
+
+        """
         self.resolve_network(network)
         return self.substrate.get_metadata_storage_functions( block_hash=block_hash)
 
     @classmethod
     def sand(cls): 
+        """
+        A class method that performs the sand operation.
+
+        Returns:
+            None
+        """
         node_keys =  cls.node_keys()
         spec = cls.spec()
         addy = c.root_key().ss58_address
@@ -2345,6 +4051,23 @@ class Subspace(c.Module):
 
 
     def test_balance(self, network:str = network, n:int = 10, timeout:int = 10, verbose:bool = False, min_amount = 10, key=None):
+        """
+        Test the balance of a given network by performing a series of transfers.
+
+        Args:
+            network (str, optional): The network to test the balance on. Defaults to the value of the 'network' variable.
+            n (int, optional): The number of transfers to perform. Defaults to 10.
+            timeout (int, optional): The timeout for each transfer in seconds. Defaults to 10.
+            verbose (bool, optional): Whether to print verbose output. Defaults to False.
+            min_amount (int, optional): The minimum amount for each transfer. Defaults to 10.
+            key (Any, optional): The key to use for authentication. Defaults to None.
+
+        Raises:
+            AssertionError: If the balance is less than or equal to 0.
+
+        Returns:
+            None
+        """
         key = c.get_key(key)
 
         balance = self.get_balance(network=network)
@@ -2354,6 +4077,15 @@ class Subspace(c.Module):
 
 
     def test_commands(self, network:str = network, n:int = 10, timeout:int = 10, verbose:bool = False, min_amount = 10, key=None):
+        """
+        This function tests commands with the given network, number of transfers, timeout, verbosity, minimum amount, and key.
+        :param network: a string representing the network
+        :param n: an integer representing the number of transfers
+        :param timeout: an integer representing the timeout value
+        :param verbose: a boolean representing the verbosity
+        :param min_amount: the minimum amount
+        :param key: the key for the transaction
+        """
         key = c.get_key(key)
 
         key2 = c.get_key('test2')
@@ -2367,20 +4099,42 @@ class Subspace(c.Module):
 
     @classmethod
     def fix(cls):
+        """
+        Fixes the issue by finding three free ports and adding them to the list of ports to avoid.
+
+        Returns:
+            None
+        """
         avoid_ports = []
         free_ports = c.free_ports(n=3, avoid_ports=avoid_ports)
         avoid_ports += free_ports
 
     def num_holders(self, **kwargs):
+        """
+        This function calculates the number of holders and returns the count.
+        """
         balances = self.balances(**kwargs)
         return len(balances)
 
     def total_balance(self, **kwargs):
+        """
+        Calculates the total balance of the object based on the balances returned by the `balances` method.
+
+        Args:
+            **kwargs: Keyword arguments that will be passed to the `balances` method.
+
+        Returns:
+            float: The total balance of the object.
+
+        """
         balances = self.balances(**kwargs)
         return sum(balances.values())
     
 
     def sand(self, **kwargs):
+        """
+        Calculate the total sum of balances from the `my_balances` method.
+        """
         balances = self.my_balances(**kwargs)
         return sum(balances.values())
     
@@ -2399,12 +4153,35 @@ class Subspace(c.Module):
     """
 
     def chain(self, *args, **kwargs):
+        """
+        A function that chains together the specified functions from the subspace.chain module.
+        
+        Parameters:
+            *args: Variable length arguments to pass to the chained functions.
+            **kwargs: Keyword arguments to pass to the chained functions.
+        
+        Returns:
+            The result of chaining the specified functions.
+        """
         return c.module('subspace.chain')(*args, **kwargs)
     
     def chain_config(self, *args, **kwargs):
+        """
+        This function chains the configuration and returns the configuration object.
+        """
         return self.chain(*args, **kwargs).config
     
     def chains(self, *args, **kwargs):
+        """
+        A function that takes in any number of positional and keyword arguments and returns the result of calling the `chain` method with those arguments on the current instance of the class, followed by calling the `chains` method on the result.
+
+        Parameters:
+            *args: Any number of positional arguments.
+            **kwargs: Any number of keyword arguments.
+
+        Returns:
+            The result of calling the `chains` method on the result of calling the `chain` method with the given arguments.
+        """
         return self.chain(*args, **kwargs).chains()
 
     """
@@ -2417,6 +4194,15 @@ class Subspace(c.Module):
     #### Register ####
     ##################
     def min_register_stake(self, netuid: int = 0, network: str = network, fmt='j', **kwargs) -> float:
+        """
+        Calculate the minimum stake required for registration.
+
+        :param netuid: An integer representing the network UID (default is 0).
+        :param network: A string representing the network (default is the value of network).
+        :param fmt: A string specifying the format (default is 'j').
+        :param **kwargs: Additional keyword arguments.
+        :return: A float representing the total minimum stake required for registration.
+        """
         min_burn = self.min_burn( network=network, fmt=fmt)
         min_stake = self.min_stake(netuid=netuid, network=network, fmt=fmt)
         return min_stake + min_burn
@@ -2435,7 +4221,25 @@ class Subspace(c.Module):
         fmt = 'nano',
     **kwargs
     ) -> bool:
-        
+        """
+        A method to register a user with the given name, address, stake amount, subnet, key, module key, network, and other optional parameters. 
+        It resolves the network and key, validates the address, calculates the stake if not provided, converts the stake to nanos, creates parameters dictionary, prints the parameters, composes a call to register, and returns the response.
+        Parameters:
+            name: str - the name of the user (defaults to module.tage)
+            address: str - the address of the user (default is 'NA')
+            stake: float - the stake amount (default is 0)
+            subnet: str - the subnet for the user (default is 'commune')
+            key: str - the key for the user
+            module_key: str - the module key for the user
+            network: str - the network for the user
+            wait_for_inclusion: bool - flag to wait for inclusion (default is True)
+            wait_for_finalization: bool - flag to wait for finalization (default is True)
+            nonce: None - the nonce value
+            fmt: str - the format (default is 'nano')
+            kwargs: dict - additional keyword arguments
+        Returns:
+            bool - True if registration is successful, False otherwise
+        """
         network =self.resolve_network(network)
         key = self.resolve_key(key)
         address = address or c.namespace(network='local').get(name, '0.0.0.0:8888')
@@ -2478,6 +4282,28 @@ class Subspace(c.Module):
         **kwargs
         
     ) -> bool:
+        """
+        Transfers a specified amount of tokens to a given destination address.
+
+        Args:
+            dest (str): The destination address to transfer the tokens to.
+            amount (float): The amount of tokens to transfer.
+            key (str, optional): The private key to use for the transaction. Defaults to None.
+            network (str, optional): The network to use for the transaction. Defaults to None.
+            nonce (int, optional): The nonce value for the transaction. Defaults to None.
+            **kwargs: Additional keyword arguments to be passed to the `compose_call` method.
+
+        Returns:
+            bool: True if the transfer is successful, False otherwise.
+
+        Note:
+            - If the `dest` argument is a float, it is assumed to be the amount and the `amount` argument is converted to a string.
+            - The `key` argument is resolved using the `resolve_key` method.
+            - The `network` argument is resolved using the `resolve_network` method.
+            - The `dest` argument is resolved using the `resolve_key_ss58` method.
+            - The `amount` argument is converted to nano units using the `to_nanos` method.
+            - The transaction is composed using the `compose_call` method.
+        """
         # this is a bit of a hack to allow for the amount to be a string for c send 500 0x1234 instead of c send 0x1234 500
         if type(dest) in [int, float]:
             assert isinstance(amount, str), f"Amount must be a string"
@@ -2516,6 +4342,20 @@ class Subspace(c.Module):
         key: str = None,
         network : str = None,
     ) -> bool:
+        """
+        Adds profit shares for the provided keys and their corresponding shares. 
+        Resolves the key and network if provided, and performs input validations. 
+        Composes a call to the 'SubspaceModule' with the provided keys and shares, and returns the response. 
+
+        Parameters:
+            keys (List[str]): The list of keys for which profit shares are being added.
+            shares (List[float], optional): The list of shares corresponding to the keys. Defaults to None.
+            key (str, optional): The key to be resolved. Defaults to None.
+            network (str, optional): The network to be resolved. Defaults to None.
+
+        Returns:
+            bool: True if the profit shares are added successfully.
+        """
         
         key = self.resolve_key(key)
         network = self.resolve_network(network)
@@ -2539,6 +4379,18 @@ class Subspace(c.Module):
 
 
     def switch_module(self, module:str, new_module:str, n=10, timeout=20):
+        """
+        Switches the module of the specified number of servers to a new module.
+
+        Args:
+            module (str): The name of the module to switch.
+            new_module (str): The name of the new module to switch to.
+            n (int, optional): The number of servers to switch. Defaults to 10.
+            timeout (int, optional): The timeout value in seconds. Defaults to 20.
+
+        Returns:
+            list: A list of results from the module update operation.
+        """
         stats = c.stats(module, df=False)
         namespace = c.namespace(new_module, public=True)
         servers = list(namespace.keys())[:n]
@@ -2574,6 +4426,20 @@ class Subspace(c.Module):
 
 
     ) -> bool:
+        """
+        A description of the entire function, its parameters, and its return types.
+        
+        :param module: the module you want to change
+        :param name: 
+        :param address: 
+        :param delegation_fee: 
+        :param netuid: 
+        :param network: 
+        :param nonce: 
+        :param tip: 
+        
+        :return: bool
+        """
         self.resolve_network(network)
         key = self.resolve_key(module)
         netuid = self.resolve_netuid(netuid)  
@@ -2619,6 +4485,20 @@ class Subspace(c.Module):
         update= True,
         **params,
     ) -> bool:
+        """
+        Update a subnet with the given parameters and return a boolean indicating success.
+        
+        Args:
+            netuid (int): The unique identifier of the subnet.
+            key (str): The key for the subnet.
+            network: The network for the subnet.
+            nonce: The nonce for the subnet.
+            update (bool): Boolean indicating whether to update the subnet.
+            **params: Additional parameters for the subnet.
+        
+        Returns:
+            bool: A boolean value indicating the success of the update.
+        """
             
         self.resolve_network(network)
         netuid = self.resolve_netuid(netuid)
@@ -2657,6 +4537,19 @@ class Subspace(c.Module):
         nonce = None,
         **params,
     ) -> bool:
+        """
+        A function to propose an update for a subnet.
+
+        Parameters:
+            netuid: int, optional - The unique identifier of the subnet.
+            key: str, optional - A key parameter.
+            network: str - The network to operate on.
+            nonce: None - A nonce parameter.
+            **params - Additional keyword arguments.
+
+        Returns:
+            bool - The response of the function call.
+        """
 
         self.resolve_network(network)
         netuid = self.resolve_netuid(netuid)
@@ -2690,6 +4583,26 @@ class Subspace(c.Module):
         **params,
 
     ) -> bool:
+        """
+        Vote on a proposal.
+
+        Args:
+            proposal_id (int, optional): The ID of the proposal to vote on. Defaults to None.
+            key (str, optional): The key used for voting. Defaults to None.
+            network (str, optional): The network to use for voting. Defaults to 'main'.
+            nonce (Any, optional): The nonce for the voting transaction. Defaults to None.
+            **params: Additional parameters for voting.
+
+        Returns:
+            bool: True if the vote was successful, False otherwise.
+
+        Raises:
+            None
+
+        Examples:
+            >>> vote_proposal(proposal_id=1, key="my_key", network="testnet")
+            True
+        """
 
         self.resolve_network(network)
         # remove the params that are the same as the module info
@@ -2717,6 +4630,17 @@ class Subspace(c.Module):
         network = 'main',
         **params,
     ) -> bool:
+        """
+        A function to update a global setting with the given key and parameters.
+        
+        Parameters:
+            key (str): The key to be updated.
+            network (str): The network to perform the update on. Default is 'main'.
+            **params: Additional keyword arguments for the update.
+        
+        Returns:
+            bool: True if the update was successful, False otherwise.
+        """
 
         key = self.resolve_key(key)
         network = self.resolve_network(network)
@@ -2748,6 +4672,17 @@ class Subspace(c.Module):
         key: str = None,
         network = network,
     ) -> bool:
+        """
+        A function to set the code for a smart contract on the blockchain.
+
+        Args:
+            wasm_file_path (str, optional): The file path to the WebAssembly (WASM) file. Defaults to None.
+            key (str, optional): The key to sign the transaction. Defaults to None.
+            network (str): The network to connect to.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
 
         if wasm_file_path == None:
             wasm_file_path = self.wasm_file_path()
@@ -2792,6 +4727,9 @@ class Subspace(c.Module):
             existential_deposit: float = 0.1,
             sync: bool = False
         ) -> bool:
+        """
+        Transfer stake from one module to another, with various optional parameters and network settings. Returns a boolean indicating success or failure.
+        """
         # STILL UNDER DEVELOPMENT, DO NOT USE
         network = self.resolve_network(network)
         netuid = self.resolve_netuid(netuid)
@@ -2981,6 +4919,21 @@ class Subspace(c.Module):
                         min_balance = 100_000_000_000,
                         n:str = 100,
                         network: str = None) -> Optional['Balance']:
+        """
+        A function that stakes multiple modules with specified amounts. 
+
+        Args:
+            modules (List[str], optional): A list of module names to stake to. Defaults to None.
+            amounts (Union[List[str], float, int], optional): Amounts to stake for each module. Defaults to None.
+            key (str, optional): The key for staking. Defaults to None.
+            netuid (int, optional): The user ID for staking. Defaults to 0.
+            min_balance (int): The minimum balance required for staking. Defaults to 100_000_000_000.
+            n (str): The number of modules to stake to. Defaults to 100.
+            network (str, optional): The network to stake on. Defaults to None.
+
+        Returns:
+            Optional['Balance']: The response from staking the modules.
+        """
         network = self.resolve_network( network )
         netuid = self.resolve_netuid( netuid )
         key = self.resolve_key( key )
@@ -3026,6 +4979,25 @@ class Subspace(c.Module):
                         n:str = 10,
                         local:bool = False,
                         network: str = None) -> Optional['Balance']:
+        """
+        Transfers multiple amounts to multiple destinations.
+
+        Args:
+            destinations (List[str]): A list of destination addresses.
+            amounts (Union[List[str], float, int]): The amounts to transfer. If a single value is provided, it will be used for all destinations.
+            key (str, optional): The private key to sign the transaction. Defaults to None.
+            netuid (int, optional): The netuid of the network. Defaults to 0.
+            n (str, optional): The number of destinations to transfer to. Defaults to 10.
+            local (bool, optional): Whether to use local addresses. Defaults to False.
+            network (str, optional): The network to use. Defaults to None.
+
+        Returns:
+            Optional['Balance']: The balance after the transfer.
+
+        Raises:
+            AssertionError: If the total amount exceeds the balance, or if the length of destinations and amounts is not the same.
+
+        """
         network = self.resolve_network( network )
         key = self.resolve_key( key )
         balance = self.get_balance(key=key, fmt='j')
@@ -3090,6 +5062,9 @@ class Subspace(c.Module):
                         key: str = None, 
                         netuid:int = 0,
                         network: str = None) -> Optional['Balance']:
+        """
+        This function unstakes multiple modules from the blockchain, with the option to specify the modules and corresponding amounts. It resolves the network and key, and then performs the unstaking operation. The parameters include modules (either a list of strings or a string), amounts (either a list of strings, a float, or an integer), key, netuid, and network. It returns an optional Balance object.
+        """
         
         network = self.resolve_network( network )
         key = self.resolve_key( key )
@@ -3144,6 +5119,18 @@ class Subspace(c.Module):
                     netuid = 0,
                     network = network,
                     to = None):
+        """
+        unstake2key function to unstake modules. 
+
+        Args:
+            modules (str or list): Module name or list of module names to unstake. Defaults to 'all'.
+            netuid (int): Unique identifier for the network. Defaults to 0.
+            network: The network to unstake modules from.
+            to: Not used in this function.
+
+        Returns:
+            None
+        """
         if modules == 'all':
             modules = self.my_modules()
         else:
@@ -3164,6 +5151,19 @@ class Subspace(c.Module):
                         network = network,
                         to = None,
                         existential_deposit = 1) -> Optional['Balance']:
+        """
+        Unstakes all the modules from the specified key, with the option to specify the network, recipient, and existential deposit amount. Returns the response of the unstaking and transfer operations.
+        
+        Args:
+            key (str): The key to unstake the modules from. Defaults to 'model.openai'.
+            netuid: The netuid value for the modules.
+            network: The network to use for the operation.
+            to: The recipient of the unstaked amount.
+            existential_deposit (int): The amount of existential deposit.
+            
+        Returns:
+            Optional['Balance']: The response of the unstaking and transfer operations.
+        """
         
         network = self.resolve_network( network )
         key = self.resolve_key( key )
@@ -3199,20 +5199,46 @@ class Subspace(c.Module):
     
 
     def my_servers(self, search=None,  **kwargs):
+        """
+        Retrieves a list of servers associated with the user's modules.
+
+        Args:
+            search (str, optional): A string to search for within the server names. Defaults to None.
+            **kwargs: Additional keyword arguments to be passed to the `my_modules` method.
+
+        Returns:
+            list: A list of server names that match the search criteria. If no search criteria is provided, all server names are returned.
+        """
         servers = [m['name'] for m in self.my_modules(**kwargs)]
         if search != None:
             servers = [s for s in servers if search in s]
         return servers
     
     def my_modules_names(self, *args, **kwargs):
+        """
+        Generate the names of all modules owned by the user.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            List[str]: A list of strings representing the names of the modules owned by the user.
+        """
         my_modules = self.my_modules(*args, **kwargs)
         return [m['name'] for m in my_modules]
 
     def my_module_keys(self, *args,  **kwargs):
+        """
+        A description of the entire function, its parameters, and its return types.
+        """
         modules = self.my_modules(*args, **kwargs)
         return [m['key'] for m in modules]
 
     def my_key2uid(self, *args, network=None, netuid=0, update=False, **kwargs):
+        """
+        This function takes in variable arguments, a network, netuid, and update flag. It calls the key2uid method to get a dictionary, then calls the key2address method to get a dictionary, and filters the key2uid dictionary based on the keys present in the values of the key2address dictionary. It returns the filtered dictionary.
+        """
         key2uid = self.key2uid(*args, network=network, netuid=netuid, **kwargs)
         key2address = c.key2address(update=update )
         key_addresses = list(key2address.values())
@@ -3220,6 +5246,18 @@ class Subspace(c.Module):
         return my_key2uid
     
     def staked_modules(self, key = None, netuid = 0, network = 'main', **kwargs):
+        """
+        Retrieves staked modules for a given key and network.
+
+        Args:
+            key (optional): The key to retrieve staked modules for.
+            netuid (optional): The network UID to retrieve staked modules for.
+            network (optional): The network to retrieve staked modules for.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict: A dictionary of staked modules.
+        """
         key = self.resolve_key(key)
         netuid = self.resolve_netuid(netuid)
         staked_modules = self.get_stake_to(key=key, netuid=netuid, names=False, update=True, network=network, **kwargs)
@@ -3231,6 +5269,9 @@ class Subspace(c.Module):
     
     
     def my_keys(self, *args, **kwargs):
+        """
+        Returns a list of keys from the result of calling `my_key2uid` method with the given arguments.
+        """
         return list(self.my_key2uid(*args, **kwargs).keys())
 
     def vote(
@@ -3242,6 +5283,20 @@ class Subspace(c.Module):
         network = None,
         update=False,
     ) -> bool:
+        """
+        Vote function for setting weights for uids in a network.
+        
+        Parameters:
+            uids: Union['torch.LongTensor', list] = None - UIDs to vote for.
+            weights: Union['torch.FloatTensor', list] = None - Associated weights for the uids.
+            netuid: int = 0 - Network ID.
+            key: 'c.key' = None - Key for the vote.
+            network - Network information.
+            update: bool = False - Flag for updating.
+
+        Returns:
+            bool: Success status of the voting process.
+        """
         import torch
         network = self.resolve_network(network)
         netuid = self.resolve_netuid(netuid)
@@ -3349,6 +5404,13 @@ class Subspace(c.Module):
 
 
     def register_servers(self, search=None, **kwargs):
+        """
+        Registers servers based on the provided search criteria and keyword arguments.
+
+        :param search: Optional search criteria
+        :param kwargs: Additional keyword arguments
+        :return: None
+        """
         stakes = self.stakes()
         for m in c.servers(network='local'):
             try:
@@ -3361,14 +5423,28 @@ class Subspace(c.Module):
                 c.print(e, color='red')
     reg_servers = register_servers
     def reged_servers(self, **kwargs):
+        """
+        Retrieves the registered servers from the local network.
+
+        :param kwargs: Additional keyword arguments.
+        :return: The list of registered servers.
+        """
         servers =  c.servers(network='local')
 
 
 
     def my_uids(self, *args, **kwargs):
+        """
+        Returns a list of unique identifiers (UIDs) associated with the current instance of the class.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            list: A list of UIDs associated with the current instance.
+        """
         return list(self.my_key2uid(*args, **kwargs).values())
-    
-    
     
     def my_names(self, *args, **kwargs):
         my_modules = self.my_modules(*args, **kwargs)
@@ -3377,6 +5453,19 @@ class Subspace(c.Module):
 
 
     def registered_servers(self, netuid = 0, network = network,  **kwargs):
+        """
+        A function that retrieves registered servers based on the provided netuid, network, and additional keyword arguments.
+        Parameters:
+            netuid : int, optional (default = 0)
+                The unique identifier for the network.
+            network : str
+                The network to retrieve servers from.
+            **kwargs : dict
+                Additional keyword arguments to be passed.
+        Returns:
+            list
+                A list of registered server keys.
+        """
         netuid = self.resolve_netuid(netuid)
         network = self.resolve_network(network)
         servers = c.servers(network='local')
@@ -3388,6 +5477,21 @@ class Subspace(c.Module):
     reged = reged_servers = registered_servers
 
     def unregistered_servers(self, netuid = 0, network = network,  **kwargs):
+        """
+        Retrieves a list of unregistered servers.
+
+        This function takes in an optional parameter `netuid` which represents the unique identifier for the network.
+        If `netuid` is not provided, it defaults to 0.
+
+        The `network` parameter represents the network for which the unregistered servers are to be retrieved.
+        If `network` is not provided, it defaults to the value of the `network` variable.
+
+        Additional keyword arguments can be provided, but they are not used in this function.
+
+        Returns:
+            list: A list of unregistered server keys.
+
+        """
         netuid = self.resolve_netuid(netuid)
         network = self.resolve_network(network)
         network = self.resolve_network(network)
@@ -3400,6 +5504,15 @@ class Subspace(c.Module):
 
     
     def check_reged(self, netuid = 0, network = network,  **kwargs):
+        """
+        Checks if a given `netuid` is registered in the specified `network`.
+        
+        :param netuid: An integer representing the `netuid` to be checked. Defaults to 0.
+        :param network: A string representing the `network` to be checked. Defaults to 'network'.
+        :param **kwargs: Additional keyword arguments.
+        
+        :return: A dictionary containing the results of the check.
+        """
         reged = self.reged(netuid=netuid, network=network, **kwargs)
         jobs = []
         for module in reged:
@@ -3413,6 +5526,19 @@ class Subspace(c.Module):
     unreged = unreged_servers = unregistered_servers
                
     def my_balances(self, search=None, update=False, fmt='j', min_value=10, **kwargs):
+        """
+        Retrieves the balances of the addresses associated with the given search criteria.
+
+        Args:
+            search (str, optional): The search criteria to filter the addresses. Defaults to None.
+            update (bool, optional): Whether to update the balances. Defaults to False.
+            fmt (str, optional): The format of the balances. Defaults to 'j'.
+            min_value (int, optional): The minimum value of balances to include. Defaults to 10.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict: A dictionary containing the balances of the addresses associated with the search criteria, filtered by the minimum value.
+        """
         key2address = c.key2address(search)
         balances = self.balances(update=update, fmt=fmt, **kwargs)
         my_balances = {k:balances[v] for k,v in key2address.items() if v in balances}
@@ -3423,6 +5549,21 @@ class Subspace(c.Module):
 
 
     def stake_spread(self,  modules:list=None, key:str = None,ratio = 1.0, n:int=50):
+        """
+        Stakes a specified amount of tokens for a given list of modules.
+
+        Args:
+            modules (list, optional): A list of modules to stake tokens for. Defaults to None.
+            key (str, optional): The key to use for staking. Defaults to None.
+            ratio (float, optional): The ratio of the total balance to stake. Defaults to 1.0.
+            n (int, optional): The number of top modules to consider. Defaults to 50.
+
+        Raises:
+            AssertionError: If the balance is less than or equal to 0, or if the ratio is greater than 1.0 or less than 0.0.
+
+        Returns:
+            None
+        """
         key = self.resolve_key(key)
         name2key = self.name2key()
         if modules == None:
@@ -3459,16 +5600,41 @@ class Subspace(c.Module):
 
        
     def key2value(self, search=None, fmt='j', netuid=0, **kwargs):
+        """
+        This function takes in several parameters and returns a dictionary with updated values based on the input parameters.
+        """
         key2value = self.my_balance(search=search, fmt=fmt, **kwargs)
         for k,v in self.my_stake(search=search, fmt=fmt, netuid=netuid, **kwargs).items():
             key2value[k] += v
         return key2value
 
     def total_value(self, search=None, fmt='j', **kwargs):
+        """
+        Calculate the total value based on the provided search criteria and format, and return the sum of the values.
+        
+        :param search: (optional) The search criteria to filter the values.
+        :param fmt: (optional) The format of the values. Default is 'j'.
+        :param kwargs: Additional keyword arguments.
+        :return: The total sum of the values.
+        """
         return sum(self.key2value(search=search, fmt=fmt, **kwargs).values())
 
 
     def my_stake(self, search=None, netuid = 0, network = None, fmt=fmt,  block=None, update=False):
+        """
+        Calculates the stake for each key in `mystaketo` dictionary based on the provided `netuid`, `network`, `fmt`, `block`, and `update` parameters. 
+        
+        Args:
+            search (str, optional): A string to search for in the keys of `mystaketo` dictionary. Defaults to None.
+            netuid (int, optional): The netuid parameter. Defaults to 0.
+            network (str, optional): The network parameter. Defaults to None.
+            fmt (str, optional): The fmt parameter. Defaults to fmt.
+            block (str, optional): The block parameter. Defaults to None.
+            update (bool, optional): The update parameter. Defaults to False.
+            
+        Returns:
+            dict: A dictionary containing the keys from `mystaketo` dictionary and their corresponding stake values.
+        """
         mystaketo = self.my_stake_to(netuid=netuid, network=network, fmt=fmt,block=block, update=update)
         key2stake = {}
         for key, staketo_tuples in mystaketo.items():
@@ -3480,10 +5646,33 @@ class Subspace(c.Module):
 
 
     def stake_top_modules(self,netuid=netuid, feature='dividends', **kwargs):
+        """
+        A function to stake top modules based on a specified feature with optional keyword arguments.
+        
+        Parameters:
+            netuid: str, optional, the unique identifier for the network
+            feature: str, the feature to base the stake on, default is 'dividends'
+            **kwargs: additional keyword arguments to pass to other functions
+        
+        Returns:
+            None
+        """
         top_module_keys = self.top_module_keys(k='dividends')
         self.stake_many(modules=top_module_keys, netuid=netuid, **kwargs)
     
     def rank_my_modules(self,search=None, k='stake', n=10, **kwargs):
+        """
+        Ranks the modules based on the given search criteria and returns the top 'n' ranked modules.
+
+        Parameters:
+            search (str, optional): The search criteria to filter the modules. Defaults to None.
+            k (str, optional): The ranking criterion. Defaults to 'stake'.
+            n (int, optional): The number of top ranked modules to return. Defaults to 10.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            list: A list of the top 'n' ranked modules.
+        """
         modules = self.my_modules(search=search, **kwargs)
         ranked_modules = self.rank_modules(modules=modules, search=search, k=k, n=n, **kwargs)
         return modules[:n]
@@ -3493,6 +5682,20 @@ class Subspace(c.Module):
 
 
     def my_balance(self, search:str=None, update=False, network:str = 'main', fmt=fmt,  block=None, min_value:int = 0):
+        """
+        Calculate the balance of the user for a specific network.
+
+        Parameters:
+            search (str, optional): A string to search for in the balance dictionary. Defaults to None.
+            update (bool, optional): Whether to update the balance or not. Defaults to False.
+            network (str, optional): The network to calculate the balance for. Defaults to 'main'.
+            fmt (str, optional): The format of the balance. Defaults to fmt.
+            block (int, optional): The block number to calculate the balance at. Defaults to None.
+            min_value (int, optional): The minimum value of the balance to include. Defaults to 0.
+
+        Returns:
+            dict: A dictionary containing the user's balance for each key.
+        """
 
         balances = self.balances(network=network, fmt=fmt, block=block, update=update)
         my_balance = {}
@@ -3519,6 +5722,19 @@ class Subspace(c.Module):
                  update=False,
                  fmt='j'
                  ):
+        """
+        Calculate the sum of the total stake and total balance for a given network.
+        
+        :param network: The network to calculate the sum for. Default is 'main'.
+        :type network: str
+        :param update: Whether to update the values before calculating the sum. Default is False.
+        :type update: bool
+        :param fmt: The format of the returned value. Default is 'j'.
+        :type fmt: str
+        
+        :return: The sum of the total stake and total balance.
+        :rtype: int or float
+        """
         return self.my_total_stake(network=network, update=update, fmt=fmt,) + \
                     self.my_total_balance(network=network, update=update, fmt=fmt)
     
@@ -3532,11 +5748,42 @@ class Subspace(c.Module):
         return subnet2stake
 
     def my_total_stake(self, netuid='all', network = 'main', fmt=fmt, update=False):
+        """
+        Calculate the total stake for the specified netuid on the specified network.
+        
+        Parameters:
+            netuid (str): The identifier for the stakeholder. Default is 'all'.
+            network (str): The network to calculate the stake on. Default is 'main'.
+            fmt (fmt): The format of the stake information.
+            update (bool): Whether to update the stake information. Default is False.
+        
+        Returns:
+            float: The total stake value.
+        """
         my_stake_to = self.my_stake_to(netuid=netuid, network=network, fmt=fmt, update=update)
         return sum(list(my_stake_to.values()))
 
 
     def staker2stake(self,  update=False, network='main', fmt='j', local=False):
+        """
+        Calculates the total stake for each staker in the given network.
+
+        Args:
+            update (bool, optional): Whether to update the stake information. Defaults to False.
+            network (str, optional): The network to calculate the stake for. Defaults to 'main'.
+            fmt (str, optional): The format of the returned stake information. Defaults to 'j'.
+            local (bool, optional): Whether to use local stake information. Defaults to False.
+
+        Returns:
+            dict: A dictionary mapping each staker to their total stake.
+
+        Raises:
+            None
+
+        Examples:
+            >>> staker2stake()
+            {'staker1': 100, 'staker2': 50}
+        """
         staker2netuid2stake = self.staker2netuid2stake(update=update, network=network, fmt=fmt, local=local)
         staker2stake = {}
         for staker, netuid2stake in staker2netuid2stake.items():
@@ -3547,6 +5794,19 @@ class Subspace(c.Module):
     
 
     def staker2netuid2stake(self,  update=False, network='main', fmt='j', local=False, **kwargs):
+        """
+        A function to update staker to netuid to stake mapping and return the updated dictionary.
+        
+        Parameters:
+            update (bool): If True, update the mapping, default is False.
+            network (str): The network for which the mapping is to be updated, default is 'main'.
+            fmt (str): The format of the stake, default is 'j'.
+            local (bool): If True, use a local mapping, default is False.
+            **kwargs: Additional keyword arguments for querying the mapping.
+
+        Returns:
+            dict: The updated staker to netuid to stake mapping.
+        """
         stake_to = self.query_map("StakeTo", update=update, network=network, **kwargs)
         staker2netuid2stake = {}
         for netuid , stake_to_subnet in stake_to.items():
@@ -3565,14 +5825,45 @@ class Subspace(c.Module):
 
  
     def my_total_balance(self, network = None, fmt=fmt, update=False):
+        """
+        Calculate the total balance for a user on a given network.
+
+        :param network: (optional) The network on which to calculate the balance.
+        :type network: str
+        :param fmt: (optional) The format in which to display the balance.
+        :type fmt: str
+        :param update: (optional) Whether to update the balance before calculating the total.
+        :type update: bool
+        :return: The total balance for the user on the specified network.
+        :rtype: float
+        """
         return sum(self.my_balance(network=network, fmt=fmt, update=update ).values())
 
 
     def check_valis(self, **kwargs):
+        """
+        Check the validity of the servers based on the given parameters.
+
+        :param kwargs: Additional parameters to be passed to the `check_servers` method.
+        :return: The result of the `check_servers` method.
+        """
         return self.check_servers(search='vali', **kwargs)
     
     
     def check_servers(self, search='vali',update:bool=False,  min_lag=100, remote=False, **kwargs):
+        """
+        Generate a batch response after checking the status of servers for the given search criteria.
+        
+        Parameters:
+            search (str): The criteria to search for in the servers.
+            update (bool): Flag indicating whether to update the server information.
+            min_lag (int): The minimum acceptable lag for a server.
+            remote (bool): Flag indicating whether to execute the function remotely.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            dict: A dictionary containing the response for each server checked.
+        """
         if remote:
             kwargs = c.locals2kwargs(locals())
             return self.remote_fn('check_servers', kwargs=kwargs)
@@ -3615,10 +5906,27 @@ class Subspace(c.Module):
                     network = network,
                     mode='ws',
                      **kwargs):
-
         """
-        Composes a call to a Substrate chain.
-
+        A method to compose and execute a call using a given function name and parameters.
+        :param fn: The name of the function to call.
+        :param params: A dictionary of parameters to pass to the function.
+        :param key: The key used for the call.
+        :param tip: The tip value for the call.
+        :param module: The module to call the function from.
+        :param wait_for_inclusion: A boolean indicating whether to wait for inclusion.
+        :param wait_for_finalization: A boolean indicating whether to wait for finalization.
+        :param process_events: A boolean indicating whether to process events.
+        :param color: The color to display the transaction information.
+        :param verbose: A boolean indicating whether to display verbose information.
+        :param save_history: A boolean indicating whether to save the transaction history.
+        :param sudo: A boolean indicating whether to use sudo for the call.
+        :param nonce: The nonce value for the call.
+        :param remote_module: The remote module to connect to.
+        :param unchecked_weight: A boolean indicating whether to use unchecked weight.
+        :param network: The network to connect to.
+        :param mode: The mode of connection.
+        :param **kwargs: Additional keyword arguments.
+        :return: The response of the call.
         """
         key = self.resolve_key(key)
         network = self.resolve_network(network, mode=mode)
@@ -3701,22 +6009,61 @@ class Subspace(c.Module):
             
 
     def tx_history(self, key:str=None, mode='complete',network=network, **kwargs):
+        """
+        Retrieves the transaction history for a given key.
+
+        Args:
+            key (str, optional): The key to retrieve the transaction history for. Defaults to None.
+            mode (str, optional): The mode of retrieval. Can be either 'pending' or 'complete'. Defaults to 'complete'.
+            network (str, optional): The network to retrieve the transaction history from. Defaults to the value of the 'network' parameter.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            list: A list of transaction history objects.
+
+        Raises:
+            AssertionError: If the mode is not 'pending' or 'complete'.
+        """
         key_ss58 = self.resolve_key_ss58(key)
         assert mode in ['pending', 'complete']
         pending_path = f'history/{network}/{key_ss58}/{mode}'
         return self.glob(pending_path)
     
     def pending_txs(self, key:str=None, **kwargs):
+        """
+        Retrieve pending transactions using the specified key and additional keyword arguments.
+        """
         return self.tx_history(key=key, mode='pending', **kwargs)
 
     def complete_txs(self, key:str=None, **kwargs):
+        """
+        This function completes transactions using the provided key and optional keyword arguments.
+        """
         return self.tx_history(key=key, mode='complete', **kwargs)
 
     def clean_tx_history(self):
+        """
+        Clean transaction history and return the result.
+        """
         return self.ls(f'tx_history')
 
         
     def resolve_tx_dirpath(self, key:str=None, mode:'str([pending,complete])'='pending', network=network, **kwargs):
+        """
+        Resolves the directory path for a given key in the transaction history.
+
+        Args:
+            key (str, optional): The key to resolve the directory path for. Defaults to None.
+            mode (str, optional): The mode of the transaction history. Must be either 'pending' or 'complete'. Defaults to 'pending'.
+            network (str): The network on which the transaction history is stored.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            str: The resolved directory path for the given key and mode.
+
+        Raises:
+            AssertionError: If the mode is not either 'pending' or 'complete'.
+        """
         key_ss58 = self.resolve_key_ss58(key)
         assert mode in ['pending', 'complete']
         pending_path = f'history/{network}/{key_ss58}/{mode}'
@@ -3724,6 +6071,15 @@ class Subspace(c.Module):
     
 
     def resolve_key(self, key = None):
+        """
+        Resolve the key to be used, taking into account default values and configurations.
+
+        Parameters:
+            key (str): The key to be resolved. If None, it defaults to self.config.key or 'module'.
+
+        Returns:
+            str: The resolved key with an ss58_address attribute.
+        """
         if key == None:
             key = self.config.key
         if key == None:
@@ -3738,6 +6094,15 @@ class Subspace(c.Module):
         
     @classmethod
     def test_endpoint(cls, url=None):
+        """
+        Test the endpoint by setting the network with the given URL and checking if the network is successfully set.
+        
+        :param url: (optional) The URL to test the endpoint with. If not provided, a random URL from the list of URLs will be used.
+        :type url: str
+        
+        :return: True if the network is successfully set, False otherwise.
+        :rtype: bool
+        """
         if url == None:
             url = c.choice(cls.urls())
         self = cls()
@@ -3756,6 +6121,9 @@ class Subspace(c.Module):
 
 
     def stake_spread_top_valis(self):
+        """
+        This function calculates the stake spread for the top valis and assigns a key to each vali.
+        """
         top_valis = self.top_valis()
         name2key = self.name2key()
         for vali in top_valis:
@@ -3763,6 +6131,12 @@ class Subspace(c.Module):
 
     @classmethod
     def pull(cls, rpull:bool = False):
+        """
+        Pulls the latest changes from the remote repository and removes the library path if it contains less than 5 files.
+
+        :param rpull: (bool) If True, recursively pulls the changes from all submodules. Default is False.
+        :return: None
+        """
         if len(cls.ls(cls.libpath)) < 5:
             c.rm(cls.libpath)
         c.pull(cwd=cls.libpath)
@@ -3770,6 +6144,9 @@ class Subspace(c.Module):
             cls.rpull()
 
     def dashboard(self, **kwargs):
+        """
+        This function is a dashboard method that takes in keyword arguments and uses the streamlit library to write the output of the get_module method.
+        """
         import streamlit as st
         return st.write(self.get_module())
     

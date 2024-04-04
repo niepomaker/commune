@@ -1059,13 +1059,16 @@ class c:
         Examples: import_object("torch.nn"): imports nn from torch
         
         '''
-        from importlib import import_module
-        module = '.'.join(key.split('.')[:-1])
-        object_name = key.split('.')[-1]
-        if verbose:
-            c.print(f'Importing {object_name} from {module}')
-        obj =  getattr(import_module(module), object_name)
-        return obj
+        try:
+            from importlib import import_module
+            module = '.'.join(key.split('.')[:-1])
+            object_name = key.split('.')[-1]
+            if verbose:
+                c.print(f'Importing {object_name} from {module}')
+            obj =  getattr(import_module(module), object_name)
+            return obj
+        except Exception as e:
+            c.print(f'Error: {e}', color='red')
     
     imp = get_object = importobj = import_object
 
@@ -8027,6 +8030,8 @@ class c:
         return c.module('subspace')().n(*args, **kwargs)
     @classmethod
     def stats(cls, *args, **kwargs):
+        if args and kwargs == {}:
+            return
         return c.module('subspace')().stats(*args, **kwargs)
 
     @classmethod

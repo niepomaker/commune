@@ -24,7 +24,7 @@ RUN pip install setuptools wheel
 
 #RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt -s
 
 RUN pip install -e .
 

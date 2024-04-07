@@ -19,10 +19,12 @@ class Access(c.Module):
                 refresh: bool = False,
                 max_age = 600, # max age of the state in seconds
                 sync_interval: int =  60, #  1000 seconds per sync with the network
+                public = False,
 
                 **kwargs):
-        
         self.set_config(locals())
+
+        self.public = public
         self.user_module = c.module("user")()
         self.address2key = c.address2key()
         self.set_module(module)
@@ -83,6 +85,12 @@ class Access(c.Module):
 
         returns : dict
         """
+        if not self.public:
+            # here we want to verify the data is signed with the correct key
+            request_staleness = c.timestamp() - input['data'].get('timestamp', 0)
+            # verifty the request is not too old
+            assert request_staleness < self.max_request_staleness, f"Request is too old, {request_staleness} > MAX_STALENESS ({self.max_request_staleness})  seconds old"
+                
         fn = input['fn']
         address = input['address']
         if c.is_admin(address):
@@ -103,6 +111,9 @@ class Access(c.Module):
 
         if address in self.address2key:
             return {'success': True, 'msg': f'address {address} is in the whitelist'}
+
+        if self.public:
+            return {'success': True, 'msg': f'is open to the public, enjoy'}
         
         current_time = c.time()
 

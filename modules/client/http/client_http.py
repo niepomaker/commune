@@ -70,6 +70,7 @@ class Client(c.Module):
         port : int= None,
         timeout: int = 10,
         generator: bool = False,
+        public : bool = False,
         headers : dict ={'Content-Type': 'application/json'},
         ):
     
@@ -79,17 +80,24 @@ class Client(c.Module):
         args = args if args else []
         kwargs = kwargs if kwargs else {}
         url = f"http://{self.address}/{fn}/"
+
         input =  { 
                         "args": args,
                         "kwargs": kwargs,
-                        "ip": self.my_ip,
-                        "timestamp": c.timestamp(),
                         }
         self.count += 1
+        timestamp = c.timestamp()
+
         # serialize this into a json string
-        request = self.serializer.serialize(input)
-        request = self.key.sign(request, return_json=True)
-        
+        if  public:
+            request = input
+        else:
+            input['ip'] = self.my_ip
+            input['timestamp'] = timestamp
+            request = self.serializer.serialize(input)
+            request = self.key.sign(request, return_json=True)
+        c.print(f"Request: {request}", color='green')
+
         # start a client session and send the request
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=request, headers=headers) as response:
@@ -116,7 +124,8 @@ class Client(c.Module):
         input['fn'] = fn
         input['result'] = result
         input['module']  = self.address
-        input['latency'] =  c.time() - input['timestamp']
+        input['latency'] =  c.time() - timestamp
+        input['timestamp'] = timestamp
         
         if self.save_history:
             self.add_history(input)

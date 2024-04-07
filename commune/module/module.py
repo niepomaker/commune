@@ -138,6 +138,7 @@ class c:
                 kwargs = None,
                 params = None,
                 default_fn = 'info',
+                public : bool = False,
                 **extra_kwargs) -> None:
           
         
@@ -162,7 +163,7 @@ class c:
         kwargs = kwargs or {}
         kwargs.update(extra_kwargs) 
         fn = fn or default_fn
-        return  asyncio.run(module.async_forward(fn=fn, args=args, kwargs=kwargs))
+        return  asyncio.run(module.async_forward(fn=fn, args=args, kwargs=kwargs, public=public))
 
     @classmethod
     async def async_call(cls, *args,**kwargs):
@@ -2169,7 +2170,7 @@ class c:
                 module:str, 
                 network : str = 'local',
                 namespace = None,
-                mode = 'http',
+                client = 'client',
                 virtual:bool = True, 
                 prefix_match: bool = False,
                 possible_modes = ['http', 'https', 'ws', 'wss'],
@@ -2209,15 +2210,15 @@ class c:
             address = address.split('://')[-1]
         ip = ':'.join(address.split(':')[:-1])
         port = int(address.split(':')[-1])
-
+        '''
+        Returns a client to a server
+        '''
+        client = c.module(client)(ip=ip, port=port,**kwargs)
+        # if virtual turn client into a virtual client, making it act like if the server was local
+        if virtual:
+            return client.virtual()
         
-        return c.get_client(ip=ip, 
-                            port=port, 
-                            key=key, 
-                            mode=mode,
-                            virtual=virtual, 
-                            **kwargs)
-
+        return client
     @classmethod
     async def async_connect(cls, *args, **kwargs):
         return c.connect(*args, **kwargs)
@@ -2291,18 +2292,7 @@ class c:
             return dict(zip(modules, module_clients))
         return module_clients
 
-    @classmethod
-    def get_client(cls, ip:str = None, port:int = None ,virtual:bool = True, mode=server_mode, **kwargs):
-        '''
-        Returns a client to a server
-        '''
-        client_path = f'client.{mode}'
-        client = c.module(client_path)(ip=ip, port=port,**kwargs)
-        # if virtual turn client into a virtual client, making it act like if the server was local
-        if virtual:
-            return client.virtual()
-        
-        return client
+
 
     
 

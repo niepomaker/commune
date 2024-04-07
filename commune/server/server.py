@@ -66,7 +66,7 @@ class Server(c.Module):
         module.address  = self.address
         
         self.module = module 
-        self.access_module = c.module(access_module)(module=self.module)  
+        self.access_module = c.module(access_module)(module=self.module, public=self.public)  
         self.set_history_path(history_path)
         self.set_key(key)
 
@@ -106,44 +106,52 @@ class Server(c.Module):
             signature: the signature of the request
    
         """
-        user_info = None
+        user_info = {'success': False}
         try:
-            input['fn'] = fn
             # you can verify the input with the server key class
+
+            if 'data' not in input:
+
+                if 'params' in input:
+                    if isinstance(input['params'], dict):
+                        input['kwargs'] = input['params']
+                        input['args'] = []
+                    elif isinstance(input['params'], list):
+                        assert isinstance(input['params'], list), f"params must be a list or dict"
+                        input['args'] = input['params']
+                        input['kwargs'] = {}
+                    else:
+                        raise ValueError(f"params must be a list or dict")
+
+                input = {'data': input}
             if self.public:
-                pass
-            else:
-                assert self.key.verify(input), f"Data not signed with correct key"
+                input = {'data': input['data']}
+                input = c.get_key('test').sign(input['data'], return_json=True)
+            assert self.key.verify(input), f"Data not signed with correct key"
+
+            input['data'] = self.serializer.deserialize(input['data'])
 
 
-            if 'args' in input and 'kwargs' in input:
-                input['data'] = {'args': input['args'], 
-                                 'kwargs': input['kwargs'], 
+
+            if 'args' in input or 'kwargs' in input:
+                input['data'] = {'args': input.get('args', []), 
+                                 'kwargs': input.get('kwargs', {}), 
                                  'timestamp': input['timestamp'], 
                                  'address': input['address']}
-            input['data'] = self.serializer.deserialize(input['data'])
-            # here we want to verify the data is signed with the correct key
-            request_staleness = c.timestamp() - input['data'].get('timestamp', 0)
-            # verifty the request is not too old
-            assert request_staleness < self.max_request_staleness, f"Request is too old, {request_staleness} > MAX_STALENESS ({self.max_request_staleness})  seconds old"
-            
+ 
+            input['fn'] = fn
+
             # verify the access module
+       
             user_info = self.access_module.verify(input)
+
             if not user_info['success']:
                 return user_info
-            assert 'args' in input['data'], f"args not in input data"
 
             data = input['data']
             args = data.get('args',[])
             kwargs = data.get('kwargs', {})
 
-            fn_name = f"{self.name}::{fn}"
-
-            info = {
-                'fn': fn_name,
-                'address': input['address'],
-            }
-            
             fn_obj = getattr(self.module, fn)
             
             if callable(fn_obj):
@@ -165,17 +173,12 @@ class Server(c.Module):
         else:
             c.print(f'🚨 Error: {self.name}::{fn} --> {input["address"][:4]}... 🚨\033', color='red')
         
-
         result = self.process_result(result)
     
         output = {
         'module': self.name,
         'fn': fn,
-        'address': input['address'],
-        'args': input['data']['args'],
-        'kwargs': input['data']['kwargs'],
-        
-
+        'address': input['address'],        
         }
         if self.save_history:
 
@@ -183,7 +186,8 @@ class Server(c.Module):
                 {
                     'success': success,
                     'user': user_info,
-                    'timestamp': input['data']['timestamp'],
+                    'timestamp': input['data'].get('timestamp', c.time()),
+                    'input': input['data'], 
                     'result': result if c.jsonable(result) else None,
                 }
             )
@@ -254,7 +258,8 @@ class Server(c.Module):
         else:
             # if we are not using sse, then we can do this with json
             result = self.serializer.serialize(result)
-            result = self.key.sign(result, return_json=True)
+            if self.public:
+                result = self.key.sign(result, return_json=True)
             return result
         
     

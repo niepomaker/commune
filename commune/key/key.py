@@ -1011,7 +1011,6 @@ class Keypair(c.Module):
 
         if isinstance(data, dict):
 
-            crypto_type = int(data.pop('crypto_type'))
             signature = data.pop('signature')
             public_key = c.ss58_decode(data.pop('address'))
             if 'data' in data:

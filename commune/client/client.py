@@ -96,12 +96,13 @@ class Client(c.Module):
             input['timestamp'] = timestamp
             request = self.serializer.serialize(input)
             request = self.key.sign(request, return_json=True)
+        
+        
         c.print(f"Request: {request}", color='green')
 
         # start a client session and send the request
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=request, headers=headers) as response:
-                
                 if response.content_type == 'application/json':
                     # PROCESS JSON EVENTS
                     result = await asyncio.wait_for(response.json(), timeout=timeout)
@@ -112,10 +113,9 @@ class Client(c.Module):
                     result = await self.process_stream(response)
                 else:
                     raise ValueError(f"Invalid response content type: {response.content_type}")
-        if isinstance(result, dict):
-            result = self.serializer.deserialize(result)
-        elif isinstance(result, str):
-            result = self.serializer.deserialize(result)
+        
+        result = self.serializer.deserialize(result)
+        
         if isinstance(result, dict) and 'data' in result:
             result = result['data']
 

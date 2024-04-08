@@ -20,12 +20,13 @@ class Access(c.Module):
                 max_age = 600, # max age of the state in seconds
                 sync_interval: int =  60, #  1000 seconds per sync with the network
                 public = False,
+                max_request_staleness = 2, # 10 minutes
 
                 **kwargs):
         self.set_config(locals())
 
         self.public = public
-        self.user_module = c.module("user")()
+        self.user = c.module("user")()
         self.address2key = c.address2key()
         self.set_module(module)
         self.state_path = state_path
@@ -124,7 +125,7 @@ class Access(c.Module):
         role2rate = self.state.get('role2rate', {})
 
         # get the role of the user
-        role = self.user_module.get_role(address) or 'public'
+        role = self.user.get_role(address) or 'public'
         rate_limit = role2rate.get(role, 0)
 
         # stake rate limit

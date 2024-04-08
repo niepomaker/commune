@@ -20,7 +20,7 @@ class Server(c.Module):
         key = None,
         verbose: bool = False,
         timeout: int = 256,
-        access_module: str = 'server.access',
+        access: str = 'server.access',
         public: bool = False,
         serializer: str = 'serializer',
         save_history:bool= True,
@@ -66,7 +66,7 @@ class Server(c.Module):
         module.address  = self.address
         
         self.module = module 
-        self.access_module = c.module(access_module)(module=self.module, public=self.public)  
+        self.access = c.module(access)(module=self.module, public=self.public)  
         self.set_history_path(history_path)
         self.set_key(key)
 
@@ -110,28 +110,25 @@ class Server(c.Module):
         try:
             # you can verify the input with the server key class
 
+            if 'params' in input:
+                if isinstance(input['params'], dict):
+                    input['kwargs'] = input['params']
+                    input['args'] = []
+                elif isinstance(input['params'], list):
+                    assert isinstance(input['params'], list), f"params must be a list or dict"
+                    input['args'] = input['params']
+                    input['kwargs'] = {}
+                else:
+                    raise ValueError(f"params must be a list or dict")
+
             if 'data' not in input:
-
-                if 'params' in input:
-                    if isinstance(input['params'], dict):
-                        input['kwargs'] = input['params']
-                        input['args'] = []
-                    elif isinstance(input['params'], list):
-                        assert isinstance(input['params'], list), f"params must be a list or dict"
-                        input['args'] = input['params']
-                        input['kwargs'] = {}
-                    else:
-                        raise ValueError(f"params must be a list or dict")
-
                 input = {'data': input}
+
             if self.public:
-                input = {'data': input['data']}
                 input = c.get_key('test').sign(input['data'], return_json=True)
             assert self.key.verify(input), f"Data not signed with correct key"
 
             input['data'] = self.serializer.deserialize(input['data'])
-
-
 
             if 'args' in input or 'kwargs' in input:
                 input['data'] = {'args': input.get('args', []), 
@@ -143,18 +140,16 @@ class Server(c.Module):
 
             # verify the access module
        
-            user_info = self.access_module.verify(input)
+            user_info = self.access.verify(input)
 
             if not user_info['success']:
                 return user_info
-
-            data = input['data']
-            args = data.get('args',[])
-            kwargs = data.get('kwargs', {})
-
+            
             fn_obj = getattr(self.module, fn)
             
             if callable(fn_obj):
+                args = input['data'].get('args',[])
+                kwargs = input['data'].get('kwargs', {})
                 result = fn_obj(*args, **kwargs)
             else:
                 result = fn_obj
@@ -197,6 +192,8 @@ class Server(c.Module):
             self.add_history(output)
 
         return result
+    
+
     def set_api(self, ip:str = '0.0.0.0', port:int = 8888):
         ip = self.ip if ip == None else ip
         port = self.port if port == None else port
@@ -245,9 +242,22 @@ class Server(c.Module):
             'address': self.address,
         }
 
-
     
+    def generator_wrapper(self, generator):
 
+        for item in generator:
+            # we wrap the item in a json object, just like the serializer does
+            item = self.serializer.serialize({'data': item})
+            item_size = len(str(item))
+            # we need to add a chunk start and end to the item
+            if item_size > self.chunk_size:
+                # if the item is too big, we need to chunk it
+                chunks =[item[i:i+self.chunk_size] for i in range(0, item_size, self.chunk_size)]
+                # we need to yield the chunks in a format that the eventsource response can understand
+                for chunk in chunks:
+                    yield chunk
+            else:
+                yield item
 
     def process_result(self,  result):
         if c.is_generator(result):
@@ -262,24 +272,6 @@ class Server(c.Module):
                 result = self.key.sign(result, return_json=True)
             return result
         
-    
-    def generator_wrapper(self, generator):
-
-        for item in generator:
- 
-            # we wrap the item in a json object, just like the serializer does
-            item = self.serializer.serialize({'data': item})
-            item_size = len(str(item))
-            # we need to add a chunk start and end to the item
-            if item_size > self.chunk_size:
-                # if the item is too big, we need to chunk it
-                chunks =[item[i:i+self.chunk_size] for i in range(0, item_size, self.chunk_size)]
-                # we need to yield the chunks in a format that the eventsource response can understand
-                for chunk in chunks:
-                    yield chunk
-            else:
-                yield item
-
 
 
 
